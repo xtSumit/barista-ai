@@ -248,7 +248,9 @@ starters_shown = len(st.session_state.messages) == 1
 if starters_shown:
     st.caption("Or start with one of these:")
     for row in (STARTERS[:2], STARTERS[2:]):
-        for col, starter in zip(st.columns(len(row)), row):
+        # strict=True: if the column count and suggestion count ever drift, fail
+        # loudly rather than silently dropping a button off the end.
+        for col, starter in zip(st.columns(len(row)), row, strict=True):
             if col.button(starter, use_container_width=True, key=f"s-{starter}"):
                 st.session_state.pending = starter
                 st.rerun()
