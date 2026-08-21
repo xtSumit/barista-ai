@@ -9,6 +9,3 @@ __pycache__/
 *.key
 *.json.key
 .streamlit/secrets.toml
-
-# Local-only notes (not part of the submission)
-DECISIONS.md
