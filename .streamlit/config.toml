@@ -1,0 +1,7 @@
+# Warm neighbourhood-café palette. Streamlit's native theming, so the app looks
+# right before a single line of custom CSS is involved.
+[theme]
+primaryColor = "#9C6644"              # espresso — buttons, focus rings, accents
+backgroundColor = "#FBF7F0"           # cream paper
+secondaryBackgroundColor = "#F1E4D3"  # sidebar and chat bubbles
+textColor = "#2E241D"                 # roasted-bean brown, not black

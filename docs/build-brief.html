@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="How the AI Barista is built: files, message flow, decisions and answers to the obvious questions.">
+<title>Barista Build Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+
+<style>
+  :root {
+    --paper:      #F5F7F5;
+    --raised:     #FFFFFF;
+    --ink:        #141E1B;
+    --ink-soft:   #5C6A66;
+    --accent:     #0E6E63;
+    --accent-bg:  #E4EFEC;
+    --warn:       #8A5B0E;
+    --warn-bg:    #F6EEDD;
+    --bad:        #A0332A;
+    --bad-bg:     #F7E7E4;
+    --rule:       #D9DFDB;
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:     #0F1513;
+      --raised:    #161F1D;
+      --ink:       #E6EBE8;
+      --ink-soft:  #93A19C;
+      --accent:    #4EC0AE;
+      --accent-bg: #14302C;
+      --warn:      #DCA355;
+      --warn-bg:   #2E2617;
+      --bad:       #E38175;
+      --bad-bg:    #331D1A;
+      --rule:      #25302D;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:     #0F1513;
+    --raised:    #161F1D;
+    --ink:       #E6EBE8;
+    --ink-soft:  #93A19C;
+    --accent:    #4EC0AE;
+    --accent-bg: #14302C;
+    --warn:      #DCA355;
+    --warn-bg:   #2E2617;
+    --bad:       #E38175;
+    --bad-bg:    #331D1A;
+    --rule:      #25302D;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.0625rem;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+  @media (max-width: 40rem) { .wrap { padding: 2.5rem 1.15rem 4rem; } }
+
+  .eyebrow {
+    font-family: var(--sans); font-size: 0.6875rem; font-weight: 600;
+    letter-spacing: 0.11em; text-transform: uppercase; color: var(--accent);
+    margin: 0 0 0.6rem;
+  }
+  h1 {
+    font-family: var(--sans); font-weight: 600; font-size: clamp(2rem, 5.4vw, 2.9rem);
+    line-height: 1.08; letter-spacing: -0.022em; margin: 0 0 1rem; text-wrap: balance;
+  }
+  .standfirst { font-size: 1.1875rem; color: var(--ink-soft); margin: 0 0 2.25rem; text-wrap: pretty; }
+
+  h2 {
+    font-family: var(--sans); font-weight: 600; font-size: 1.375rem;
+    letter-spacing: -0.014em; line-height: 1.22; margin: 0 0 0.9rem; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans); font-weight: 600; font-size: 1rem;
+    margin: 0 0 0.4rem; letter-spacing: -0.006em;
+  }
+  section { border-top: 1px solid var(--rule); padding-top: 2.25rem; margin-top: 2.75rem; }
+  section.lede { border-top: 0; padding-top: 0; margin-top: 0; }
+  p { margin: 0 0 1rem; }
+  p:last-child, ul:last-child, ol:last-child { margin-bottom: 0; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+  code, kbd { font-family: var(--mono); font-size: 0.86em; }
+  p code, li code, td code, .a code, dd code, figcaption code { background: var(--accent-bg); color: var(--ink); padding: 0.1em 0.34em; border-radius: 3px; }
+  pre {
+    font-family: var(--mono); font-size: 0.8125rem; line-height: 1.65;
+    background: var(--raised); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 0.95rem 1.1rem; overflow-x: auto; margin: 0 0 1rem;
+  }
+  pre .c { color: var(--ink-soft); }
+  pre .hl { color: var(--accent); }
+
+  .say {
+    background: var(--raised); border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0;
+    padding: 1.15rem 1.35rem; margin: 0 0 1.25rem;
+  }
+  .say p { margin: 0 0 0.7rem; }
+  .say p:last-child { margin-bottom: 0; }
+  .say-label {
+    font-family: var(--sans); font-size: 0.625rem; font-weight: 600; letter-spacing: 0.11em;
+    text-transform: uppercase; color: var(--ink-soft); display: block; margin-bottom: 0.5rem;
+  }
+
+  .grid { display: flex; flex-direction: column; gap: 1.35rem; }
+  .files { display: flex; flex-direction: column; }
+  .file { display: grid; grid-template-columns: 11rem 1fr; gap: 0 1.25rem; padding: 0.95rem 0; border-bottom: 1px solid var(--rule); }
+  .file:last-child { border-bottom: 0; }
+  .file .fname { font-family: var(--mono); font-size: 0.8125rem; color: var(--accent); padding-top: 0.16rem; }
+  .file .fbody { font-size: 1rem; }
+  .file .know { display: block; margin-top: 0.4rem; font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-soft); }
+  @media (max-width: 34rem) { .file { grid-template-columns: 1fr; gap: 0.3rem; } }
+
+  figure { margin: 0 0 1.25rem; }
+  .figbox { background: var(--raised); border: 1px solid var(--rule); border-radius: 6px; padding: 1.1rem 0.9rem 0.8rem; overflow-x: auto; }
+  .figbox svg { max-width: 100%; height: auto; display: block; margin: 0 auto; color: var(--ink); }
+  .figbox .acc-stroke { stroke: var(--accent); }
+  .figbox .acc-text { fill: var(--accent); }
+  .figbox .acc-box { fill: var(--accent-bg); stroke: var(--accent); }
+  .figbox marker path { fill: currentColor; }
+  .figbox #ah-a path { fill: var(--accent); }
+  figcaption { font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-soft); margin-top: 0.7rem; text-wrap: pretty; }
+
+  ol.trace { list-style: none; counter-reset: t; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1.05rem; }
+  ol.trace > li { counter-increment: t; position: relative; padding-left: 2.6rem; }
+  ol.trace > li::before {
+    content: counter(t); position: absolute; left: 0; top: 0.16rem;
+    font-family: var(--mono); font-size: 0.75rem; font-weight: 500;
+    color: var(--accent); background: var(--accent-bg);
+    width: 1.65rem; height: 1.65rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.trace pre { margin: 0.5rem 0 0; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 0.9375rem; margin: 0 0 1rem; }
+  .tscroll { overflow-x: auto; }
+  th { text-align: left; font-weight: 600; font-size: 0.6875rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-soft); padding: 0 0.8rem 0.5rem 0; border-bottom: 1px solid var(--rule); }
+  td { padding: 0.7rem 0.8rem 0.7rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td:last-child, th:last-child { padding-right: 0; }
+
+  ul { padding-left: 1.15rem; margin: 0 0 1rem; }
+  li { margin-bottom: 0.4rem; }
+
+  details.q { border-bottom: 1px solid var(--rule); }
+  details.q:first-of-type { border-top: 1px solid var(--rule); }
+  details.q summary {
+    cursor: pointer; padding: 0.9rem 1.6rem 0.9rem 0; position: relative;
+    font-family: var(--sans); font-weight: 500; font-size: 1rem; list-style: none;
+  }
+  details.q summary::-webkit-details-marker { display: none; }
+  details.q summary::after {
+    content: "+"; position: absolute; right: 0.2rem; top: 50%; transform: translateY(-50%);
+    font-family: var(--mono); color: var(--accent); font-size: 1.05rem;
+  }
+  details.q[open] summary::after { content: "\2212"; }
+  details.q .a { padding: 0 0 1.1rem; }
+  details.q .a p:first-child { margin-top: 0; }
+  details.q.hostile summary { color: var(--bad); }
+
+  .pill {
+    display: inline-block; font-family: var(--sans); font-size: 0.6875rem; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; padding: 0.2em 0.55em;
+    border-radius: 3px; vertical-align: 0.12em;
+  }
+  .pill-warn { background: var(--warn-bg); color: var(--warn); }
+  .pill-bad { background: var(--bad-bg); color: var(--bad); }
+  .pill-ok { background: var(--accent-bg); color: var(--accent); }
+
+  dl.glossary { margin: 0; display: flex; flex-direction: column; gap: 0.95rem; }
+  dl.glossary dt { font-family: var(--mono); font-size: 0.84rem; color: var(--accent); margin-bottom: 0.18rem; }
+  dl.glossary dd { margin: 0; }
+
+  footer { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.5rem; font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <p class="eyebrow">Google Cloud Gen AI Academy APAC &middot; Track 1, Lab 1</p>
+  <h1>Barista Build Brief</h1>
+  <p class="standfirst">Everything in your <code>ai-barista-adk</code> folder, explained so you can defend it out loud &mdash; what each file does, what happens to one message, and the answers to the questions you will actually be asked.</p>
+
+  <section class="lede">
+    <h2>Start with this</h2>
+    <p>If someone asks &ldquo;what did you build?&rdquo;, this is the whole answer. Say it slowly; it takes about fifty seconds.</p>
+    <div class="say">
+      <span class="say-label">The spoken version</span>
+      <p>&ldquo;It&rsquo;s a barista agent for a coffee shop. You chat with it and it recommends a drink &mdash; but it can only recommend drinks we actually serve, because it isn&rsquo;t answering from memory. Every time you ask it something, the agent calls a Python function that searches our menu file, and it only sees the drinks that function hands back. That&rsquo;s the RAG part: retrieve first, then generate from what was retrieved.&rdquo;</p>
+      <p>&ldquo;The other half is allergies. If you tell it you&rsquo;re lactose intolerant, that gets passed into the search and dairy drinks are removed <em>before</em> the model ever sees them &mdash; so the model isn&rsquo;t being trusted to remember what has milk in it. It&rsquo;s a filter in code, not a judgement call by the AI.&rdquo;</p>
+      <p>&ldquo;It&rsquo;s built on Google&rsquo;s Agent Development Kit with Gemini, the UI is Streamlit, and it deploys to Cloud Run straight from source &mdash; no Dockerfile.&rdquo;</p>
+    </div>
+    <p>Two sentences to have ready if they only want the headline: <strong>the model never invents a drink, because it only sees what the search function returns. And allergen filtering happens in Python before the model is involved, not in the prompt.</strong></p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The parts</p>
+    <h2>Six files, and the one thing to know about each</h2>
+    <div class="files">
+      <div class="file">
+        <div class="fname">menu.json</div>
+        <div class="fbody">Eight drinks. Each has a name, price, description, <code>tags</code>, and <code>allergens</code>.
+          <span class="know">This is the entire knowledge base. There is no database. If a drink isn&rsquo;t in here, the barista cannot offer it.</span></div>
+      </div>
+      <div class="file">
+        <div class="fname">menu_tool.py</div>
+        <div class="fbody">The <code>search_menu()</code> function &mdash; scores drinks against what the customer asked for, and removes anything with a blocked allergen.
+          <span class="know">This is the &ldquo;retrieval&rdquo; in RAG. Plain Python, no AI inside it. It imports nothing from Google, which is why its test runs with no API key.</span></div>
+      </div>
+      <div class="file">
+        <div class="fname">agent.py</div>
+        <div class="fbody">Creates the ADK <code>LlmAgent</code>: which Gemini model, the instruction telling it how to behave, and the list of tools it may call.
+          <span class="know">Roughly forty lines, and half of them are the instruction. This file is the &ldquo;agent&rdquo; the grading asks about.</span></div>
+      </div>
+      <div class="file">
+        <div class="fname">app.py</div>
+        <div class="fbody">The Streamlit chat window: message history, the sidebar menu, and the code that sends your message to the agent and waits for the reply.
+          <span class="know">Streamlit re-runs this entire file top to bottom on every keystroke. That&rsquo;s why history lives in <code>st.session_state</code> and not in a normal variable.</span></div>
+      </div>
+      <div class="file">
+        <div class="fname">test_menu.py</div>
+        <div class="fbody">Six checks on retrieval and allergen safety. Run with <code>python test_menu.py</code>.
+          <span class="know">Offline and free &mdash; no key, no network, no cost. Run it before you present; it&rsquo;s your proof the allergen filter doesn&rsquo;t leak.</span></div>
+      </div>
+      <div class="file">
+        <div class="fname">requirements.txt</div>
+        <div class="fbody">Four pinned dependencies: <code>google-adk 2.2.0</code>, <code>google-genai 2.19.0</code>, <code>streamlit 1.56.0</code>, <code>python-dotenv 1.2.3</code>.
+          <span class="know">Cloud Run reads this file to build the container. Pinned versions mean the deployed app matches what you tested.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">The mechanism</p>
+    <h2>One message, end to end</h2>
+    <p>This is the diagram to draw on a whiteboard if you&rsquo;re asked how it works. The teal path is the part that makes it RAG.</p>
+
+    <figure>
+      <div class="figbox">
+        <svg viewBox="0 0 900 330" role="img" aria-label="One chat message travels from the browser through app.py and the ADK runner to Gemini; Gemini calls the search_menu tool, which reads menu.json and returns matching and unsafe drinks; Gemini then sends a grounded answer back to the browser.">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+            </marker>
+            <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z"></path>
+            </marker>
+          </defs>
+
+          <g font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="middle">
+            <rect x="20" y="44" width="100" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <text x="70" y="72" fill="currentColor">You</text>
+
+            <rect x="180" y="44" width="145" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <text x="252" y="66" fill="currentColor">Streamlit</text>
+            <text x="252" y="81" fill="currentColor" font-family="IBM Plex Mono, monospace" font-size="10.5" opacity="0.72">app.py</text>
+
+            <rect x="385" y="44" width="150" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <text x="460" y="66" fill="currentColor">ADK Runner</text>
+            <text x="460" y="81" fill="currentColor" font-size="10.5" opacity="0.72">+ session</text>
+
+            <rect x="595" y="44" width="145" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <text x="667" y="66" fill="currentColor">Gemini</text>
+            <text x="667" y="81" fill="currentColor" font-size="10.5" opacity="0.72">LlmAgent</text>
+
+            <rect x="595" y="165" width="145" height="46" rx="6" class="acc-box" stroke-width="1.2"></rect>
+            <text x="667" y="187" class="acc-text" font-family="IBM Plex Mono, monospace" font-size="11">search_menu()</text>
+            <text x="667" y="201" class="acc-text" font-size="10">plain Python</text>
+
+            <rect x="790" y="165" width="90" height="46" rx="6" fill="none" class="acc-stroke" stroke-width="1.2"></rect>
+            <text x="835" y="193" class="acc-text" font-family="IBM Plex Mono, monospace" font-size="10.5">menu.json</text>
+          </g>
+
+          <g stroke="currentColor" stroke-width="1.2" fill="none">
+            <line x1="120" y1="67" x2="174" y2="67" marker-end="url(#ah)"></line>
+            <line x1="325" y1="67" x2="379" y2="67" marker-end="url(#ah)"></line>
+            <line x1="535" y1="67" x2="589" y2="67" marker-end="url(#ah)"></line>
+          </g>
+          <g font-family="IBM Plex Sans, sans-serif" font-size="9.5" fill="currentColor" text-anchor="middle" opacity="0.75">
+            <text x="147" y="59">types</text>
+            <text x="352" y="53">run_async()</text>
+            <text x="352" y="63">+ history</text>
+            <text x="562" y="53">prompt +</text>
+            <text x="562" y="63">tool schema</text>
+          </g>
+
+          <g class="acc-stroke" stroke-width="1.3" fill="none">
+            <line x1="632" y1="90" x2="632" y2="159" marker-end="url(#ah-a)"></line>
+            <line x1="704" y1="165" x2="704" y2="96" marker-end="url(#ah-a)"></line>
+            <line x1="740" y1="188" x2="784" y2="188" marker-end="url(#ah-a)"></line>
+          </g>
+          <g font-family="IBM Plex Sans, sans-serif" font-size="9.5" class="acc-text">
+            <text x="624" y="118" text-anchor="end">calls tool with</text>
+            <text x="624" y="130" text-anchor="end">query + allergies</text>
+            <text x="712" y="118" text-anchor="start">matches +</text>
+            <text x="712" y="130" text-anchor="start">unsafe_matches</text>
+            <text x="762" y="181" text-anchor="middle" font-size="9">reads</text>
+          </g>
+
+          <path d="M 740 67 H 886 V 288 H 70 V 96" stroke="currentColor" stroke-width="1.2" fill="none" marker-end="url(#ah)" stroke-dasharray="5 3"></path>
+          <text x="470" y="281" font-family="IBM Plex Sans, sans-serif" font-size="10" fill="currentColor" text-anchor="middle" opacity="0.75">grounded answer, plus the list of drinks it retrieved</text>
+        </svg>
+      </div>
+      <figcaption>One message&rsquo;s round trip. The model is never handed the whole menu &mdash; only the drinks <code>search_menu()</code> chose to return, which is what stops it inventing a drink or a price.</figcaption>
+    </figure>
+
+    <p>The same trip in words, using the real values from your test run:</p>
+
+    <ol class="trace">
+      <li><strong>You type</strong> &ldquo;I&rsquo;m lactose intolerant. I&rsquo;d like something sweet and cold.&rdquo; Streamlit appends it to <code>st.session_state.messages</code> and hands it to the runner.</li>
+      <li><strong>The runner loads the conversation</strong> for your session id and sends Gemini the whole history plus a machine-readable description of the one tool it&rsquo;s allowed to call. ADK builds that description automatically from <code>search_menu</code>&rsquo;s type hints and docstring &mdash; you never wrote a JSON schema.</li>
+      <li><strong>Gemini decides to call the tool.</strong> This is the step people mean by &ldquo;agent&rdquo;: the model chose to search rather than answer, and picked the arguments itself.
+        <pre><code>{ <span class="hl">"query"</span>: "sweet and cold",
+  <span class="hl">"exclude_allergens"</span>: ["lactose"] }</code></pre>
+      </li>
+      <li><strong>Your Python runs</strong> &mdash; no AI involved. <code>"lactose"</code> is mapped to the menu&rsquo;s label <code>"dairy"</code>, every dairy drink is removed, and the rest are scored against the words &ldquo;sweet&rdquo; and &ldquo;cold&rdquo;: a tag match is worth 3, a name match 2, a description match 1.
+        <pre><code>matches:  Decaf Soy Caramel Macchiato, Cold Brew,
+          Espresso, Oat Milk Flat White
+excluded: ["dairy"]   <span class="c">// 5 drinks removed before the model saw them</span></code></pre>
+      </li>
+      <li><strong>Gemini writes the answer</strong> using only those four drinks, taking the price from the retrieved data rather than from memory: <em>&ldquo;I highly recommend our Decaf Soy Caramel Macchiato for $5.35&hellip;&rdquo;</em></li>
+      <li><strong>Streamlit displays it</strong> and records which drinks were retrieved, which is what the <span class="pill pill-ok">Grounded in 4 menu items</span> expander shows. That expander is your on-screen evidence of RAG &mdash; open it during the demo.</li>
+    </ol>
+  </section>
+
+  <section>
+    <p class="eyebrow">The claim to defend</p>
+    <h2>Is this &ldquo;real&rdquo; RAG?</h2>
+    <p>Yes, and you should be ready for the question, because your retrieval is a keyword scan rather than a vector database. Here&rsquo;s the honest position.</p>
+    <p>RAG means <strong>retrieve, then generate</strong>: fetch relevant data at question time and make the model answer from that data instead of from its training. Your app does exactly that. Retrieval happening via keyword scoring rather than embeddings is an implementation choice inside the retrieval step &mdash; it doesn&rsquo;t change whether the pattern is RAG.</p>
+    <p>Why the choice is defensible here: the corpus is eight items. An embedding model cannot out-retrieve exact matching on eight items, but it would add an embedding API call to every question, a vector index to build, and a database to run. The <em>grounding</em> &mdash; the property being graded &mdash; is identical either way.</p>
+    <p>Where embeddings genuinely win, and you should say so unprompted: a question with <em>no shared words</em> with the menu. &ldquo;Something to wake me up&rdquo; ought to find Cold Brew, and your keyword scan won&rsquo;t make that connection. Say it before they find it &mdash; knowing your system&rsquo;s limit reads as competence, and the fix is one function body, because <code>search_menu()</code> is the only thing that touches retrieval.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">The framework</p>
+    <h2>What ADK is actually doing for you</h2>
+    <p>Worth being precise about, since &ldquo;I used the Agent Development Kit&rdquo; invites &ldquo;to do what?&rdquo;</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>ADK piece</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>LlmAgent</code></td><td>Holds the model name, the instruction, and the tool list. It runs the loop: ask the model, notice it wants a tool, run the tool, hand the result back, repeat until the model answers.</td></tr>
+          <tr><td>Tools from functions</td><td>You passed <code>tools=[search_menu]</code>. ADK read the type hints and docstring and generated the function schema Gemini needs. That is why the docstring in <code>menu_tool.py</code> is written for the model to read, not for you.</td></tr>
+          <tr><td><code>Runner</code> + session</td><td>Stores the conversation and replays it each turn. This is why &ldquo;What&rsquo;s in it?&rdquo; works &mdash; the model still has the earlier turns, including your allergy.</td></tr>
+          <tr><td><code>App</code></td><td>A named wrapper around the root agent. The unit you hand to a runner.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Sessions are held <strong>in memory</strong>. Refresh the browser and the conversation is gone. Fine for a demo, and worth naming as a known limit before anyone asks.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Your own decisions</p>
+    <h2>Three calls you should be able to own</h2>
+    <p>These are the places the build departs from the codelab. If you&rsquo;re asked &ldquo;what was hard?&rdquo; or &ldquo;what did you decide?&rdquo;, these are the answers &mdash; each one was a real bug avoided.</p>
+
+    <div class="grid">
+      <div>
+        <h3><code>run_async()</code> instead of <code>run_debug()</code></h3>
+        <p>The codelab calls <code>runner.run_debug()</code>. Its own docstring in the installed SDK says it is for debugging and experimentation only, and that production should use <code>run_async()</code>. This is going to a public URL, so it uses <code>run_async()</code> &mdash; which also gives access to the individual events, and that is how the app knows what the tool retrieved.</p>
+      </div>
+      <div>
+        <h3>The session has to be created explicitly</h3>
+        <p><code>Runner</code> has <code>auto_create_session = False</code> by default, so calling <code>run_async()</code> with a brand-new session id raises <code>SessionNotFoundError</code> &mdash; the app would have crashed on the very first message. <code>_ensure_session()</code> in <code>app.py</code> looks for the session and creates it if missing. <code>run_debug()</code> hid this by doing it for you.</p>
+      </div>
+      <div>
+        <h3>Unsafe drinks are named, not hidden</h3>
+        <p>Originally the allergen filter removed unsafe drinks so completely that the agent couldn&rsquo;t tell &ldquo;we don&rsquo;t sell that&rdquo; from &ldquo;that would hurt you&rdquo;. Asked about hazelnut, it said <span class="pill pill-bad">we don&rsquo;t have any</span> &mdash; which is false; there is a Hazelnut Mocha, it just contains dairy. The tool now also returns <code>unsafe_matches</code>, and the instruction requires naming them honestly. It now says: <em>&ldquo;We do serve a Hazelnut Mocha, but it contains dairy, so it isn&rsquo;t safe with your lactose intolerance.&rdquo;</em></p>
+        <p>Why it mattered: someone told &ldquo;we don&rsquo;t have that&rdquo; may go looking for it elsewhere. This is the one failure in the app with consequences off the screen.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Deployment</p>
+    <h2>One codebase, two environments</h2>
+    <p>No code branches on environment &mdash; the Google SDK reads environment variables and picks its own backend. That is the answer to &ldquo;how does auth work in production?&rdquo;</p>
+    <div class="tscroll">
+      <table>
+        <thead><tr><th></th><th>Your laptop</th><th>Cloud Run</th></tr></thead>
+        <tbody>
+          <tr><td>Backend</td><td>Gemini API (AI Studio)</td><td>Vertex AI</td></tr>
+          <tr><td>Credential</td><td><code>GOOGLE_API_KEY</code> in <code>.env</code></td><td>The service account the container runs as</td></tr>
+          <tr><td>Set by</td><td><code>python-dotenv</code> at startup</td><td><code>--set-env-vars</code> at deploy time</td></tr>
+          <tr><td>Key in the repo?</td><td>No &mdash; <code>.env</code> is gitignored</td><td>No key exists at all</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Locally there is no <code>gcloud</code> CLI, so application default credentials aren&rsquo;t available &mdash; hence the key. In the cloud a service account is free, so nothing secret needs storing. The switch is <code>GOOGLE_GENAI_USE_ENTERPRISE=TRUE</code> (the older name <code>GOOGLE_GENAI_USE_VERTEXAI</code> still works).</p>
+    <p>The deploy is source-based: Cloud Buildpacks read <code>requirements.txt</code> and build the container. <strong>No Dockerfile</strong> &mdash; a likely question, and that is the answer.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">On the day</p>
+    <h2>Demo script</h2>
+    <p>Four prompts, in this order. Each demonstrates a different graded property, so say which as you type it.</p>
+    <ol class="trace">
+      <li><strong>&ldquo;I want something strong and iced&rdquo;</strong> &rarr; Cold Brew. <em>Say:</em> &ldquo;that came from the menu file, not the model&rsquo;s memory&rdquo; &mdash; then open the grounding expander.</li>
+      <li><strong>&ldquo;I&rsquo;m lactose intolerant but want something sweet&rdquo;</strong> &rarr; the Decaf Soy Caramel Macchiato, and nothing with dairy. <em>Say:</em> &ldquo;five drinks were removed in Python before the model saw the list.&rdquo;</li>
+      <li><strong>&ldquo;Do you have anything with hazelnut?&rdquo;</strong> &rarr; admits the Hazelnut Mocha exists but is unsafe for you. <em>Say:</em> &ldquo;it stays honest instead of pretending we don&rsquo;t stock it.&rdquo;</li>
+      <li><strong>&ldquo;What&rsquo;s in it?&rdquo;</strong> &rarr; answers about the drink from turn two without asking which. <em>Say:</em> &ldquo;that&rsquo;s the ADK session &mdash; the conversation is replayed on every turn.&rdquo;</li>
+    </ol>
+    <p>Have <code>python test_menu.py</code> already run in a terminal tab. Six passing checks on allergen safety is a strong thing to be able to point at.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Contingency</p>
+    <h2>If it breaks while you&rsquo;re presenting</h2>
+    <p>The single most likely failure is <strong>not</strong> a bug in your code. It is the free-tier quota, and the app shows a plain message about the coffee machine being backed up rather than a stack trace.</p>
+    <p>Quota is <em>per model</em>. During testing <code>gemini-3.6-flash</code> and <code>gemini-3.7-flash</code> both throttled while <code>gemini-3.5-flash</code> &mdash; the default &mdash; kept answering on the same key in the same minute. Two things worth knowing:</p>
+    <ul>
+      <li><span class="pill pill-warn">429 or 503</span> means quota, not breakage. The API words it as &ldquo;high demand&rdquo;, which sounds like Google&rsquo;s problem; it is usually your key&rsquo;s.</li>
+      <li>Switching model needs no code change: <code>$env:BARISTA_MODEL="gemini-3.7-flash"</code> then <code>streamlit run app.py</code>. On Cloud Run, add <code>,BARISTA_MODEL=&hellip;</code> to <code>--set-env-vars</code>.</li>
+    </ul>
+    <p>Deployed on Cloud Run it is less likely &mdash; Vertex AI bills against project quota, not the AI Studio free tier.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Preparation</p>
+    <h2>Questions you&rsquo;ll be asked</h2>
+    <p>The last three are the uncomfortable ones. They are the ones worth rehearsing.</p>
+
+    <details class="q">
+      <summary>How do you know it isn&rsquo;t making up prices?</summary>
+      <div class="a">
+        <p>Three reasons, in increasing strength. The instruction forbids recommending anything the tool didn&rsquo;t return. The model only ever <em>sees</em> the drinks the tool returned, so there is nothing else to draw on. And the UI shows exactly what was retrieved for each answer, so any invention would be visible on screen.</p>
+      </div>
+    </details>
+
+    <details class="q">
+      <summary>How does it remember my allergy across the conversation?</summary>
+      <div class="a">
+        <p>The ADK session stores the conversation and replays it to the model each turn, so the allergy is still in context. The instruction then requires passing it in <code>exclude_allergens</code> on <em>every</em> later call. You can see it working in the trace: by turn three the query has changed to &ldquo;hazelnut&rdquo; but <code>exclude_allergens</code> is still <code>["lactose"]</code>.</p>
+      </div>
+    </details>
+
+    <details class="q">
+      <summary>Why no vector database or Firestore, like the codelab shows?</summary>
+      <div class="a">
+        <p>Eight menu items. Exact matching retrieves at least as well as embeddings at that size, so a vector index would add an embedding call per question, an index to maintain, and a database to run, with no improvement to the grounding. The trigger to add it would be the menu growing past roughly fifty items, or wanting semantic matches like &ldquo;something to wake me up&rdquo;.</p>
+      </div>
+    </details>
+
+    <details class="q">
+      <summary>What happens when the menu changes?</summary>
+      <div class="a">
+        <p>Edit <code>menu.json</code> and redeploy. Nothing to re-index, no embeddings to regenerate &mdash; a genuine advantage of this design, not just a shortcut. The sidebar in the app is rendered from the same file, so the UI cannot drift out of sync with what the agent knows.</p>
+      </div>
+    </details>
+
+    <details class="q">
+      <summary>Why Streamlit rather than a proper web framework?</summary>
+      <div class="a">
+        <p>It gives a complete chat interface &mdash; history, message bubbles, input box &mdash; in about a hundred and thirty lines, and it is what the lab specifies. The cost is that Streamlit re-runs the whole script on every interaction, which is why the runner and the event loop are cached with <code>st.cache_resource</code> and history lives in <code>st.session_state</code>.</p>
+      </div>
+    </details>
+
+    <details class="q hostile">
+      <summary>Isn&rsquo;t this just keyword search with a chatbot on top?</summary>
+      <div class="a">
+        <p>Don&rsquo;t get defensive; agree with the description, then draw the line. Yes &mdash; retrieval is keyword search. That is the R in RAG, and the pattern is defined by grounding the generation in retrieved data, not by the retrieval algorithm. What makes it an <em>agent</em> rather than a search box is that the model decides when to search and what to search for: it turned &ldquo;I&rsquo;m lactose intolerant, something sweet and cold&rdquo; into a query plus a structured allergen filter, and carried that filter forward for the rest of the conversation without being told to.</p>
+      </div>
+    </details>
+
+    <details class="q hostile">
+      <summary>What&rsquo;s the weakest part of your build?</summary>
+      <div class="a">
+        <p>Answer this one honestly and specifically &mdash; it is the question that separates people who built something from people who watched it get built. Two real weaknesses:</p>
+        <ul>
+          <li><strong>Retrieval can&rsquo;t match paraphrase.</strong> A question sharing no words with the menu (&ldquo;something to wake me up&rdquo;) won&rsquo;t find Cold Brew. Fix: embeddings inside <code>search_menu()</code>, which is the only place that would change.</li>
+          <li><strong>Sessions are in memory.</strong> Refreshing the page loses the conversation, and if Cloud Run scales to more than one instance, two requests could land on different instances with different memory. Fix: a persistent session service such as Firestore.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="q hostile">
+      <summary>Would you trust this with someone&rsquo;s real allergy?</summary>
+      <div class="a">
+        <p>The careful answer, and the true one. The filtering itself is deterministic Python with a test asserting it never leaks &mdash; not a judgement by the model &mdash; and customer wording is mapped onto menu labels, so &ldquo;lactose&rdquo;, &ldquo;milk&rdquo; and &ldquo;cream&rdquo; all block dairy. That is the right architecture: the safety-critical step is code, not a prompt.</p>
+        <p>What it still depends on is the model passing the allergy through correctly, and <code>menu.json</code> being accurate. For a real shop I&rsquo;d want the allergen data owned by whoever owns the recipes, and a note telling customers to confirm with staff. I wouldn&rsquo;t claim a language model in the loop is medically safe.</p>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <p class="eyebrow">Vocabulary</p>
+    <h2>Words to be able to define</h2>
+    <p>In your own words, briefly. Hesitating on one of these is what makes a build look borrowed.</p>
+    <dl class="glossary">
+      <dt>Agent</dt><dd>A model that can decide to take actions &mdash; here, deciding to search the menu &mdash; rather than only producing text.</dd>
+      <dt>Tool / function calling</dt><dd>Giving the model a description of a function it may call. The model doesn&rsquo;t run your code; it replies &ldquo;call this, with these arguments&rdquo;, and the framework runs it and returns the result.</dd>
+      <dt>RAG</dt><dd>Retrieval-Augmented Generation. Fetch relevant data at question time and have the model answer from that, instead of from what it memorised in training.</dd>
+      <dt>Grounding</dt><dd>The property that an answer traces back to real supplied data. Your expander showing the retrieved drinks is grounding made visible.</dd>
+      <dt>Instruction</dt><dd>The standing brief in <code>agent.py</code> that shapes every reply &mdash; tone, when to call the tool, and the rules about allergens.</dd>
+      <dt>Session</dt><dd>The stored conversation. It is why the agent can resolve &ldquo;what&rsquo;s in it?&rdquo; without asking what &ldquo;it&rdquo; is.</dd>
+      <dt>Buildpack</dt><dd>How Cloud Run builds a container from your source. It detects Python, reads <code>requirements.txt</code>, and produces an image &mdash; so you never wrote a Dockerfile.</dd>
+      <dt>Service account</dt><dd>An identity for software rather than a person. On Cloud Run the app authenticates to Gemini as itself, which is why no API key is deployed.</dd>
+    </dl>
+  </section>
+
+  <footer>
+    <p>Built for the <code>ai-barista-adk</code> submission. The full decision log &mdash; including the three failed model attempts and why each call was made &mdash; is in <code>DECISIONS.md</code> in the repository, alongside the code.</p>
+  </footer>
+</div>
+
+</body>
+</html>

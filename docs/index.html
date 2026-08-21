@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A conversational coffee recommender grounded in a menu dataset, with allergen filtering enforced in code.">
+<title>AI Barista Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+
+<style>
+  :root {
+    --paper:      #F5F7F5;
+    --raised:     #FFFFFF;
+    --ink:        #141E1B;
+    --ink-soft:   #5C6A66;
+    --accent:     #0E6E63;
+    --accent-bg:  #E4EFEC;
+    --warn:       #8A5B0E;
+    --warn-bg:    #F6EEDD;
+    --bad:        #A0332A;
+    --bad-bg:     #F7E7E4;
+    --rule:       #D9DFDB;
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:     #0F1513;
+      --raised:    #161F1D;
+      --ink:       #E6EBE8;
+      --ink-soft:  #93A19C;
+      --accent:    #4EC0AE;
+      --accent-bg: #14302C;
+      --warn:      #DCA355;
+      --warn-bg:   #2E2617;
+      --bad:       #E38175;
+      --bad-bg:    #331D1A;
+      --rule:      #25302D;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:     #0F1513;
+    --raised:    #161F1D;
+    --ink:       #E6EBE8;
+    --ink-soft:  #93A19C;
+    --accent:    #4EC0AE;
+    --accent-bg: #14302C;
+    --warn:      #DCA355;
+    --warn-bg:   #2E2617;
+    --bad:       #E38175;
+    --bad-bg:    #331D1A;
+    --rule:      #25302D;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.0625rem;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+  @media (max-width: 40rem) { .wrap { padding: 2.5rem 1.15rem 4rem; } }
+
+  .eyebrow {
+    font-family: var(--sans); font-size: 0.6875rem; font-weight: 600;
+    letter-spacing: 0.11em; text-transform: uppercase; color: var(--accent);
+    margin: 0 0 0.6rem;
+  }
+  h1 {
+    font-family: var(--sans); font-weight: 600; font-size: clamp(2rem, 5.4vw, 2.9rem);
+    line-height: 1.08; letter-spacing: -0.022em; margin: 0 0 1rem; text-wrap: balance;
+  }
+  .standfirst { font-size: 1.1875rem; color: var(--ink-soft); margin: 0 0 1.75rem; text-wrap: pretty; }
+
+  h2 {
+    font-family: var(--sans); font-weight: 600; font-size: 1.375rem;
+    letter-spacing: -0.014em; line-height: 1.22; margin: 0 0 0.9rem; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans); font-weight: 600; font-size: 1rem;
+    margin: 0 0 0.4rem; letter-spacing: -0.006em;
+  }
+  section { border-top: 1px solid var(--rule); padding-top: 2.25rem; margin-top: 2.75rem; }
+  section.lede { border-top: 0; padding-top: 0; margin-top: 0; }
+  p { margin: 0 0 1rem; }
+  p:last-child, ul:last-child, ol:last-child { margin-bottom: 0; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+
+  code, kbd { font-family: var(--mono); font-size: 0.86em; }
+  p code, li code, td code, .a code, dd code, figcaption code { background: var(--accent-bg); color: var(--ink); padding: 0.1em 0.34em; border-radius: 3px; }
+  pre {
+    font-family: var(--mono); font-size: 0.8125rem; line-height: 1.65;
+    background: var(--raised); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 0.95rem 1.1rem; overflow-x: auto; margin: 0 0 1rem;
+  }
+  pre .c { color: var(--ink-soft); }
+  pre .hl { color: var(--accent); }
+  pre .u { color: var(--ink-soft); }
+
+  .metastrip {
+    display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0 0 2.25rem;
+    font-family: var(--sans);
+  }
+  .chip {
+    font-size: 0.75rem; font-weight: 500; padding: 0.3em 0.65em; border-radius: 4px;
+    border: 1px solid var(--rule); color: var(--ink-soft); background: var(--raised);
+  }
+  .chip strong { color: var(--ink); font-weight: 600; }
+
+  .say {
+    background: var(--raised); border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0;
+    padding: 1.15rem 1.35rem; margin: 0 0 1.25rem;
+  }
+  .say p { margin: 0 0 0.7rem; }
+  .say p:last-child { margin-bottom: 0; }
+  .say-label {
+    font-family: var(--sans); font-size: 0.625rem; font-weight: 600; letter-spacing: 0.11em;
+    text-transform: uppercase; color: var(--ink-soft); display: block; margin-bottom: 0.5rem;
+  }
+
+  .grid { display: flex; flex-direction: column; gap: 1.5rem; }
+  .dec { display: grid; grid-template-columns: 1.6rem 1fr; gap: 0 0.85rem; }
+  .dec .marker {
+    width: 0.42rem; height: 0.42rem; border-radius: 50%; background: var(--accent);
+    margin: 0.62rem 0 0 0.5rem;
+  }
+
+  .files { display: flex; flex-direction: column; }
+  .file { display: grid; grid-template-columns: 11rem 1fr; gap: 0 1.25rem; padding: 0.9rem 0; border-bottom: 1px solid var(--rule); }
+  .file:last-child { border-bottom: 0; }
+  .file .fname { font-family: var(--mono); font-size: 0.8125rem; color: var(--accent); padding-top: 0.16rem; }
+  .file .fbody { font-size: 1rem; }
+  .file .lines { font-family: var(--sans); font-size: 0.75rem; color: var(--ink-soft); }
+  @media (max-width: 34rem) { .file { grid-template-columns: 1fr; gap: 0.3rem; } }
+
+  figure { margin: 0 0 1.25rem; }
+  .figbox { background: var(--raised); border: 1px solid var(--rule); border-radius: 6px; padding: 1.1rem 0.9rem 0.8rem; overflow-x: auto; }
+  .figbox svg { max-width: 100%; height: auto; display: block; margin: 0 auto; color: var(--ink); }
+  .figbox .acc-stroke { stroke: var(--accent); }
+  .figbox .acc-text { fill: var(--accent); }
+  .figbox .acc-box { fill: var(--accent-bg); stroke: var(--accent); }
+  .figbox marker path { fill: currentColor; }
+  .figbox #ah-a path { fill: var(--accent); }
+  figcaption { font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-soft); margin-top: 0.7rem; text-wrap: pretty; }
+
+  ol.trace { list-style: none; counter-reset: t; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1.05rem; }
+  ol.trace > li { counter-increment: t; position: relative; padding-left: 2.6rem; }
+  ol.trace > li::before {
+    content: counter(t); position: absolute; left: 0; top: 0.16rem;
+    font-family: var(--mono); font-size: 0.75rem; font-weight: 500;
+    color: var(--accent); background: var(--accent-bg);
+    width: 1.65rem; height: 1.65rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.trace pre { margin: 0.5rem 0 0; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 0.9375rem; margin: 0 0 1rem; }
+  .tscroll { overflow-x: auto; }
+  th { text-align: left; font-weight: 600; font-size: 0.6875rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-soft); padding: 0 0.8rem 0.5rem 0; border-bottom: 1px solid var(--rule); }
+  td { padding: 0.7rem 0.8rem 0.7rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td:last-child, th:last-child { padding-right: 0; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  ul { padding-left: 1.15rem; margin: 0 0 1rem; }
+  li { margin-bottom: 0.4rem; }
+
+  details.q { border-bottom: 1px solid var(--rule); }
+  details.q:first-of-type { border-top: 1px solid var(--rule); }
+  details.q summary {
+    cursor: pointer; padding: 0.9rem 1.6rem 0.9rem 0; position: relative;
+    font-family: var(--sans); font-weight: 500; font-size: 1rem; list-style: none;
+  }
+  details.q summary::-webkit-details-marker { display: none; }
+  details.q summary::after {
+    content: "+"; position: absolute; right: 0.2rem; top: 50%; transform: translateY(-50%);
+    font-family: var(--mono); color: var(--accent); font-size: 1.05rem;
+  }
+  details.q[open] summary::after { content: "\2212"; }
+  details.q .a { padding: 0 0 1.1rem; }
+  details.q .a p:first-child { margin-top: 0; }
+
+  .pill {
+    display: inline-block; font-family: var(--sans); font-size: 0.6875rem; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; padding: 0.2em 0.55em;
+    border-radius: 3px; vertical-align: 0.12em;
+  }
+  .pill-warn { background: var(--warn-bg); color: var(--warn); }
+  .pill-bad { background: var(--bad-bg); color: var(--bad); }
+  .pill-ok { background: var(--accent-bg); color: var(--accent); }
+
+  .transcript {
+    background: var(--raised); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 1.1rem 1.25rem; margin: 0 0 1rem;
+    font-family: var(--sans); font-size: 0.9375rem;
+  }
+  .transcript .turn { display: block; margin-bottom: 0.85rem; }
+  .transcript .turn:last-child { margin-bottom: 0; }
+  .transcript .who {
+    font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ink-soft); display: block; margin-bottom: 0.2rem;
+  }
+  .transcript .tool {
+    font-family: var(--mono); font-size: 0.75rem; color: var(--accent);
+    background: var(--accent-bg); border-radius: 4px; padding: 0.4rem 0.6rem;
+    display: block; margin: 0.35rem 0; overflow-x: auto; white-space: pre;
+  }
+
+  footer { border-top: 1px solid var(--rule); margin-top: 3rem; padding-top: 1.5rem; font-family: var(--sans); font-size: 0.8125rem; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <p class="eyebrow">Python &middot; Google ADK &middot; Gemini &middot; Streamlit &middot; Cloud Run</p>
+  <h1>AI Barista Agent</h1>
+  <p class="standfirst">A conversational coffee recommender that cannot invent a drink. Every recommendation is retrieved from a menu dataset before the model speaks, and allergen filtering happens in Python &mdash; not in the prompt.</p>
+
+  <div class="metastrip">
+    <span class="chip"><strong>429</strong> lines of Python</span>
+    <span class="chip"><strong>4</strong> dependencies</span>
+    <span class="chip"><strong>6</strong> offline tests</span>
+    <span class="chip"><strong>0</strong> Dockerfiles</span>
+    <span class="chip"><strong>0</strong> secrets in the repo</span>
+  </div>
+
+  <section class="lede">
+    <h2>The problem it solves</h2>
+    <p>Point a language model at a coffee shop and it will happily recommend a drink you don&rsquo;t sell, at a price you never set, containing an ingredient the customer is allergic to. All three failures come from the same cause: the model is answering from memory rather than from your data.</p>
+    <p>This project closes that gap with two rules, both enforced in code rather than requested in a prompt:</p>
+    <ul>
+      <li><strong>The model only sees what was retrieved.</strong> Every question triggers a search over the menu, and the model&rsquo;s context contains those results and nothing else. There is no drink available to invent.</li>
+      <li><strong>Allergen filtering happens before the model is involved.</strong> Unsafe drinks are removed by a Python function, so safety never depends on the model correctly remembering which drinks contain milk.</li>
+    </ul>
+    <p>The result is a chat interface that behaves like a well-briefed member of staff: it recommends from the actual menu, quotes real prices, remembers your allergy for the rest of the conversation, and is honest when the thing you want isn&rsquo;t safe for you.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Architecture</p>
+    <h2>How one message works</h2>
+    <p>The teal path is the retrieval step &mdash; the part that makes this Retrieval-Augmented Generation rather than a chatbot with a system prompt.</p>
+
+    <figure>
+      <div class="figbox">
+        <svg viewBox="0 0 900 330" role="img" aria-label="A chat message travels from the browser through the Streamlit app and the ADK runner to Gemini; Gemini calls the search_menu tool, which reads menu.json and returns both safe matches and unsafe matches; Gemini then returns a grounded answer to the browser.">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z"></path>
+            </marker>
+            <marker id="ah-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z"></path>
+            </marker>
+          </defs>
+
+          <g font-family="IBM Plex Sans, sans-serif" font-size="12.5" text-anchor="middle">
+            <rect x="20" y="44" width="100" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <text x="70" y="72" fill="currentColor">Customer</text>
+
+            <rect x="180" y="44" width="145" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <text x="252" y="66" fill="currentColor">Streamlit</text>
+            <text x="252" y="81" fill="currentColor" font-family="IBM Plex Mono, monospace" font-size="10.5" opacity="0.72">app.py</text>
+
+            <rect x="385" y="44" width="150" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <text x="460" y="66" fill="currentColor">ADK Runner</text>
+            <text x="460" y="81" fill="currentColor" font-size="10.5" opacity="0.72">+ session</text>
+
+            <rect x="595" y="44" width="145" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.2"></rect>
+            <text x="667" y="66" fill="currentColor">Gemini</text>
+            <text x="667" y="81" fill="currentColor" font-size="10.5" opacity="0.72">LlmAgent</text>
+
+            <rect x="595" y="165" width="145" height="46" rx="6" class="acc-box" stroke-width="1.2"></rect>
+            <text x="667" y="187" class="acc-text" font-family="IBM Plex Mono, monospace" font-size="11">search_menu()</text>
+            <text x="667" y="201" class="acc-text" font-size="10">deterministic</text>
+
+            <rect x="790" y="165" width="90" height="46" rx="6" fill="none" class="acc-stroke" stroke-width="1.2"></rect>
+            <text x="835" y="193" class="acc-text" font-family="IBM Plex Mono, monospace" font-size="10.5">menu.json</text>
+          </g>
+
+          <g stroke="currentColor" stroke-width="1.2" fill="none">
+            <line x1="120" y1="67" x2="174" y2="67" marker-end="url(#ah)"></line>
+            <line x1="325" y1="67" x2="379" y2="67" marker-end="url(#ah)"></line>
+            <line x1="535" y1="67" x2="589" y2="67" marker-end="url(#ah)"></line>
+          </g>
+          <g font-family="IBM Plex Sans, sans-serif" font-size="9.5" fill="currentColor" text-anchor="middle" opacity="0.75">
+            <text x="147" y="59">asks</text>
+            <text x="352" y="53">run_async()</text>
+            <text x="352" y="63">+ history</text>
+            <text x="562" y="53">prompt +</text>
+            <text x="562" y="63">tool schema</text>
+          </g>
+
+          <g class="acc-stroke" stroke-width="1.3" fill="none">
+            <line x1="632" y1="90" x2="632" y2="159" marker-end="url(#ah-a)"></line>
+            <line x1="704" y1="165" x2="704" y2="96" marker-end="url(#ah-a)"></line>
+            <line x1="740" y1="188" x2="784" y2="188" marker-end="url(#ah-a)"></line>
+          </g>
+          <g font-family="IBM Plex Sans, sans-serif" font-size="9.5" class="acc-text">
+            <text x="624" y="118" text-anchor="end">query +</text>
+            <text x="624" y="130" text-anchor="end">allergens to exclude</text>
+            <text x="712" y="118" text-anchor="start">safe matches +</text>
+            <text x="712" y="130" text-anchor="start">unsafe matches</text>
+            <text x="762" y="181" text-anchor="middle" font-size="9">reads</text>
+          </g>
+
+          <path d="M 740 67 H 886 V 288 H 70 V 96" stroke="currentColor" stroke-width="1.2" fill="none" marker-end="url(#ah)" stroke-dasharray="5 3"></path>
+          <text x="470" y="281" font-family="IBM Plex Sans, sans-serif" font-size="10" fill="currentColor" text-anchor="middle" opacity="0.75">grounded answer, plus the drinks it was grounded in</text>
+        </svg>
+      </div>
+      <figcaption>The model is never handed the full menu &mdash; only the drinks <code>search_menu()</code> returned. Removing a drink from those results removes the model&rsquo;s ability to recommend it.</figcaption>
+    </figure>
+
+    <p>Traced with real values, for the question <em>&ldquo;I&rsquo;m lactose intolerant, I&rsquo;d like something sweet and cold&rdquo;</em>:</p>
+
+    <ol class="trace">
+      <li><strong>The runner assembles the turn</strong> &mdash; the stored conversation plus a machine-readable schema for the single tool the agent may call. The schema is generated from the Python function&rsquo;s type hints and docstring; no JSON schema is written by hand.</li>
+      <li><strong>The model chooses to retrieve</strong>, and writes its own arguments. This is the step that makes it an agent rather than a search box: free-text intent becomes a structured query plus a safety filter.
+        <pre><code>{ <span class="hl">"query"</span>: "sweet and cold",
+  <span class="hl">"exclude_allergens"</span>: ["lactose"] }</code></pre>
+      </li>
+      <li><strong>Python runs, with no model involvement.</strong> <code>"lactose"</code> is normalised to the menu&rsquo;s <code>"dairy"</code> label, every dairy drink is dropped, and survivors are scored against the query &mdash; a tag match worth 3, a name match 2, a description match 1.
+        <pre><code>matches:  Decaf Soy Caramel Macchiato, Cold Brew,
+          Espresso, Oat Milk Flat White
+excluded: ["dairy"]   <span class="c">// 5 of 8 drinks removed pre-model</span></code></pre>
+      </li>
+      <li><strong>The model composes the answer</strong> from those four drinks, taking the price from retrieved data rather than memory &mdash; and the UI records which drinks the answer was grounded in, shown inline as <span class="pill pill-ok">Grounded in 4 menu items</span>.</li>
+    </ol>
+  </section>
+
+  <section>
+    <p class="eyebrow">Codebase</p>
+    <h2>Six files</h2>
+    <div class="files">
+      <div class="file">
+        <div class="fname">menu.json</div>
+        <div class="fbody">The knowledge base &mdash; eight drinks with tags, allergens, price and caffeine content. <span class="lines">No database; edit and redeploy.</span></div>
+      </div>
+      <div class="file">
+        <div class="fname">menu_tool.py</div>
+        <div class="fbody">Retrieval and allergen filtering. Imports nothing from Google, so it is testable with no credentials and no network. <span class="lines">The R in RAG.</span></div>
+      </div>
+      <div class="file">
+        <div class="fname">agent.py</div>
+        <div class="fbody">The ADK <code>LlmAgent</code> &mdash; model, instruction, tool list. <span class="lines">Half of it is the instruction.</span></div>
+      </div>
+      <div class="file">
+        <div class="fname">app.py</div>
+        <div class="fbody">Streamlit chat UI, conversation history, and the async plumbing that survives Streamlit&rsquo;s re-run-everything execution model.</div>
+      </div>
+      <div class="file">
+        <div class="fname">test_menu.py</div>
+        <div class="fbody">Six assertions covering retrieval relevance and allergen safety. Plain <code>assert</code>, no framework. <span class="lines">Runs offline and free.</span></div>
+      </div>
+      <div class="file">
+        <div class="fname">requirements.txt</div>
+        <div class="fbody">Four pinned dependencies. Read directly by Cloud Buildpacks at deploy time.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Engineering</p>
+    <h2>Decisions worth explaining</h2>
+    <p>Each of these is a place where the obvious approach was wrong, and the reasoning is more interesting than the code.</p>
+
+    <div class="grid">
+      <div class="dec"><div class="marker"></div><div>
+        <h3>Keyword retrieval, not a vector database</h3>
+        <p>On an eight-item corpus, embeddings cannot out-retrieve exact matching &mdash; but they would add an embedding call per question, an index to build, and a database to operate. The grounding property is identical, so the complexity buys nothing. The honest limit: a query sharing no vocabulary with the menu (&ldquo;something to wake me up&rdquo;) won&rsquo;t match. Retrieval is isolated in one function, so upgrading it touches one file.</p>
+      </div></div>
+
+      <div class="dec"><div class="marker"></div><div>
+        <h3>Allergen filtering is deterministic, and speaks the customer&rsquo;s language</h3>
+        <p>Safety-critical logic doesn&rsquo;t belong in a prompt. Filtering is plain Python with a test asserting it never leaks, and an alias map so real phrasing works &mdash; &ldquo;lactose&rdquo;, &ldquo;milk&rdquo; and &ldquo;cream&rdquo; all block dairy, &ldquo;coeliac&rdquo; blocks gluten. That last one matters more than it looks: the oat milk drink contains gluten, which is exactly the trap a hand-written prompt would miss.</p>
+      </div></div>
+
+      <div class="dec"><div class="marker"></div><div>
+        <h3>Filtered drinks are reported, not erased</h3>
+        <p>The first working version had a subtle honesty bug. Asked &ldquo;anything with hazelnut?&rdquo; by a lactose-intolerant customer, it answered <span class="pill pill-bad">we don&rsquo;t have any</span> &mdash; false, because the Hazelnut Mocha exists; the filter had hidden it so completely the model couldn&rsquo;t distinguish &ldquo;not on the menu&rdquo; from &ldquo;not safe for you&rdquo;.</p>
+        <p>The tool now returns unsafe matches alongside safe ones, and the instruction requires naming them honestly while never offering them. A customer told &ldquo;we don&rsquo;t have that&rdquo; might go looking for it elsewhere &mdash; the one failure mode here with consequences off the screen.</p>
+      </div></div>
+
+      <div class="dec"><div class="marker"></div><div>
+        <h3>A single long-lived event loop, not <code>asyncio.run()</code> per message</h3>
+        <p>Streamlit re-runs the entire script on every interaction, on a possibly different thread. <code>asyncio.run()</code> closes its loop on return, while the cached API client keeps connections bound to the loop that made them &mdash; so the first message works and the <em>second</em> fails with &ldquo;Event loop is closed&rdquo;. The fix is one loop on a daemon thread, fed with <code>run_coroutine_threadsafe</code>. Verified by driving three messages from three different threads.</p>
+      </div></div>
+
+      <div class="dec"><div class="marker"></div><div>
+        <h3>Production API over the convenience helper</h3>
+        <p>The framework offers a one-line helper for running an agent. Reading its source showed a docstring stating it is for debugging only and that production should use the streaming API. Taking the longer path also exposed the individual tool-call events &mdash; which is what makes the &ldquo;grounded in N items&rdquo; disclosure possible. It also surfaced a default that would have crashed the first message: sessions are not auto-created, so the app creates its own.</p>
+      </div></div>
+
+      <div class="dec"><div class="marker"></div><div>
+        <h3>One codebase, two credential models</h3>
+        <p>Locally the app authenticates with an API key from an ignored <code>.env</code>. Deployed, it authenticates as its own service account and no key exists anywhere in the image or config. No code branches on environment &mdash; the SDK selects its backend from environment variables, so the deployed artifact is byte-identical to what was tested.</p>
+      </div></div>
+
+      <div class="dec"><div class="marker"></div><div>
+        <h3>The model name is configuration</h3>
+        <p>Normally a constant that never changes shouldn&rsquo;t be configurable. This one earned it: over the build, three model identifiers failed in three different ways &mdash; one retired for new keys, two rate-limited &mdash; and quota turned out to be per-model rather than per-project. Four model changes, zero code edits.</p>
+      </div></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Evidence</p>
+    <h2>What it actually does</h2>
+    <p>A real exchange, third turn of a conversation. Note that the allergy stated in turn one is still being applied, and that the tool call was composed by the model:</p>
+
+    <div class="transcript">
+      <span class="turn">
+        <span class="who">Customer</span>
+        Actually, do you have anything with hazelnut?
+      </span>
+      <span class="turn">
+        <span class="who">Tool call, chosen by the model</span>
+        <span class="tool">{ "query": "hazelnut", "exclude_allergens": ["lactose"] }</span>
+      </span>
+      <span class="turn">
+        <span class="who">Barista</span>
+        We do make a Hazelnut Mocha, but it contains dairy, so that is unfortunately not safe for you. We don&rsquo;t have any other drinks with hazelnut, but if you still want something sweet and cold, that Decaf Soy Caramel Macchiato ($5.35) remains your best dairy-free option.
+      </span>
+    </div>
+    <p>Three properties visible in one answer: the allergy persisted across turns without being repeated, the unsafe drink was named rather than denied, and the price came from the dataset.</p>
+
+    <div class="tscroll">
+      <table>
+        <thead><tr><th>Verification</th><th>Covers</th><th>Cost</th></tr></thead>
+        <tbody>
+          <tr><td class="num">6 assertions</td><td>Retrieval relevance, allergen leakage, customer phrasing aliases, empty-query fallback</td><td>Offline, no key</td></tr>
+          <tr><td class="num">3-turn transcript</td><td>Tool invocation, allergy persistence, grounded pricing, honest refusal</td><td>One API call per turn</td></tr>
+          <tr><td class="num">3-thread probe</td><td>Event loop survives Streamlit&rsquo;s threading model across messages</td><td>Throwaway script</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Honest limits</p>
+    <h2>What it doesn&rsquo;t do</h2>
+    <ul>
+      <li><strong>Retrieval is lexical.</strong> Paraphrase with no shared vocabulary won&rsquo;t match. The upgrade is embeddings inside the one retrieval function.</li>
+      <li><strong>Sessions are in memory.</strong> A page refresh loses the conversation, and horizontal scaling would split conversations across instances. The upgrade is a persistent session store.</li>
+      <li><strong>Allergen data is only as good as the file.</strong> The architecture puts the safety-critical step in tested code rather than in a prompt, which is the right shape &mdash; but a language model in the loop is not a medical guarantee, and real deployment would want the allergen data owned by whoever owns the recipes.</li>
+    </ul>
+    <p>Each limit has a named fix and a trigger for applying it. None were hit by this scope.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Running it</p>
+    <h2>Local setup</h2>
+    <pre><code><span class="c"># 1. environment</span>
+py -3.13 -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+<span class="c"># 2. credentials — .env is gitignored</span>
+Copy-Item .env.example .env    <span class="c"># then paste your API key in</span>
+
+<span class="c"># 3. offline checks — no key or network needed</span>
+python test_menu.py
+
+<span class="c"># 4. run</span>
+streamlit run app.py           <span class="c"># http://localhost:8501</span></code></pre>
+    <p>Deployment is source-based: the platform&rsquo;s buildpacks read <code>requirements.txt</code> and produce a container, so there is no Dockerfile to maintain and no image registry step to script.</p>
+  </section>
+
+  <section>
+    <p class="eyebrow">Questions</p>
+    <h2>Design questions, answered</h2>
+
+    <details class="q">
+      <summary>Is keyword search really RAG?</summary>
+      <div class="a">
+        <p>RAG describes the pattern &mdash; retrieve relevant data at question time, generate the answer from it &mdash; not the retrieval algorithm. Swapping keyword scoring for embeddings changes recall on paraphrased queries; it doesn&rsquo;t change whether the generation is grounded. At eight items, exact matching has the better cost-to-benefit ratio, and the boundary is one function when that stops being true.</p>
+      </div>
+    </details>
+
+    <details class="q">
+      <summary>How is the model prevented from inventing drinks and prices?</summary>
+      <div class="a">
+        <p>Structurally rather than by instruction. The model&rsquo;s context contains only the retrieved drinks, so there is no other menu item available to mention. The instruction reinforces it, and the UI displays what was retrieved for each answer, which makes any drift visible rather than silent.</p>
+      </div>
+    </details>
+
+    <details class="q">
+      <summary>Why not put the allergen rules in the prompt?</summary>
+      <div class="a">
+        <p>Because prompts are probabilistic and allergies aren&rsquo;t. A filter in code can be asserted in a test; a sentence in a prompt can only be hoped for. It also scales better &mdash; adding a drink means adding a line to a data file, not re-editing prose that enumerates ingredients.</p>
+      </div>
+    </details>
+
+    <details class="q">
+      <summary>What makes this an &ldquo;agent&rdquo; rather than a chatbot?</summary>
+      <div class="a">
+        <p>The model decides when to retrieve and what to retrieve. Given &ldquo;I&rsquo;m lactose intolerant and want something sweet and cold&rdquo;, it produced a search query and a structured allergen filter, then carried that filter through the rest of the conversation unprompted. Nothing in the code parses the customer&rsquo;s sentence.</p>
+      </div>
+    </details>
+
+    <details class="q">
+      <summary>How does deployment handle secrets?</summary>
+      <div class="a">
+        <p>It doesn&rsquo;t need to. Locally there is an API key in a gitignored file; in the cloud the container authenticates as its own service-account identity, so no credential is stored in the image, the config, or the repository. The same code handles both because the SDK reads its backend from the environment.</p>
+      </div>
+    </details>
+  </section>
+
+  <footer>
+    <p>Built with the Google Agent Development Kit, Gemini, Streamlit and Cloud Run. Source, setup instructions and the full decision log live in the repository.</p>
+  </footer>
+</div>
+
+</body>
+</html>

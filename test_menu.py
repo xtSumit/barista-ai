@@ -50,6 +50,34 @@ def test_unsafe_drinks_are_reported_not_hidden():
     assert search_menu("hazelnut mocha", [])["unsafe_matches"] == []
 
 
+def test_punctuation_does_not_defeat_matching():
+    # A sentence ends in a full stop. "cold." must still match the tag "cold".
+    plain = [i["id"] for i in search_menu("something sweet and cold", [])["matches"]]
+    punct = [i["id"] for i in search_menu("Something sweet and cold.", [])["matches"]]
+    assert punct == plain, f"punctuation changed the results: {punct} vs {plain}"
+
+    assert [i["id"] for i in search_menu("anything iced?", [])["matches"]],         "trailing question mark returned no matches"
+
+
+def test_string_instead_of_list_does_not_over_block():
+    # Models sometimes pass a bare string. Iterating it yields characters, and
+    # single letters substring-match allergen names — "y" would block "soy".
+    as_list = search_menu("sweet", ["dairy"])
+    as_string = search_menu("sweet", "dairy")
+    assert as_string["excluded_allergens"] == as_list["excluded_allergens"] == ["dairy"]
+    assert [i["id"] for i in as_string["matches"]] == [i["id"] for i in as_list["matches"]]
+    # the soy drink must survive a dairy-only exclusion
+    assert "decaf-soy-caramel-macchiato" in [i["id"] for i in as_string["matches"]]
+
+
+def test_no_drink_claims_to_be_caffeine_free():
+    # Decaf is low-caffeine, not caffeine-free. Someone avoiding caffeine on
+    # medical advice could act on the difference.
+    for item in _load_menu():
+        if "caffeine-free" in item["tags"]:
+            assert item["caffeine_mg"] == 0,                 f"{item['name']} is tagged caffeine-free but has {item['caffeine_mg']} mg"
+
+
 def test_customer_wording_maps_to_menu_allergens():
     # "lactose intolerant" and "peanut" are not menu labels; they must still filter.
     for spoken in (["lactose"], ["milk"], ["cream"]):
