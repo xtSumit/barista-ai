@@ -5,6 +5,7 @@ API key and no network. agent.py hands this function to the LlmAgent as a tool.
 """
 
 import json
+import re
 from pathlib import Path
 
 MENU_PATH = Path(__file__).parent / "menu.json"
@@ -57,6 +58,16 @@ def _is_safe(item: dict, blocked: set) -> bool:
     return True
 
 
+def _tokenise(query: str) -> set:
+    """Words worth matching on, with punctuation stripped.
+
+    Splitting on whitespace alone leaves "cold." and "iced?" — neither matches
+    the tag "cold" or "iced", so a perfectly ordinary sentence retrieves nothing.
+    """
+    cleaned = re.sub(r"[^a-z0-9\s-]", " ", query.lower())
+    return {w.strip("-") for w in cleaned.split() if len(w.strip("-")) > 2}
+
+
 def _score(item: dict, words: set) -> int:
     tags = {t.lower() for t in item["tags"]}
     score = 3 * len(words & tags)
@@ -90,15 +101,20 @@ def search_menu(query: str, exclude_allergens: list[str]) -> dict:
         allergen — mention these honestly, never offer them), and counts.
     """
     menu = _load_menu()
+    if isinstance(exclude_allergens, str):
+        # Models occasionally send a bare string. Iterating it would yield single
+        # characters, and one-letter substrings match allergen names — "dairy"
+        # would become {d,a,i,r,y}, where "y" silently blocks "soy".
+        exclude_allergens = [exclude_allergens]
     blocked = {_canonical(a) for a in (exclude_allergens or []) if a and a.strip()}
 
-    words = {w for w in query.lower().replace(",", " ").split() if len(w) > 2}
+    words = _tokenise(query)
     safe, unsafe = [], []
     for item in menu:
         (safe if _is_safe(item, blocked) else unsafe).append(item)
 
-    scored = sorted(safe, key=lambda i: _score(i, words), reverse=True)
-    matches = [i for i in scored if _score(i, words) > 0][:4]
+    ranked = sorted(((_score(i, words), i) for i in safe), key=lambda t: t[0], reverse=True)
+    matches = [i for score, i in ranked if score > 0][:4]
 
     # No keyword landed — hand back the whole safe menu rather than nothing, so
     # the agent still has real data to recommend from instead of inventing a drink.
@@ -109,10 +125,13 @@ def search_menu(query: str, exclude_allergens: list[str]) -> dict:
     # Drinks the customer asked for that we do serve but must not offer them.
     # Without this the agent cannot tell "we don't sell that" from "that would
     # hurt you", and ends up denying the menu item exists.
+    unsafe_ranked = sorted(
+        ((_score(i, words), i) for i in unsafe), key=lambda t: t[0], reverse=True
+    )
     unsafe_matches = [
         {"name": i["name"], "allergens": i["allergens"]}
-        for i in sorted(unsafe, key=lambda i: _score(i, words), reverse=True)
-        if _score(i, words) > 0
+        for score, i in unsafe_ranked
+        if score > 0
     ][:3]
 
     return {
