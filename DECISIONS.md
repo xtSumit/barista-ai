@@ -1,251 +1,90 @@
-# Decisions log — AI Barista (ADK + RAG on Cloud Run)
+# Decisions log — AI Barista
 
-Why this project is built the way it is: every non-obvious call, what it cost, and
-when to revisit it. Written as it was built, so the mistakes are in here too — a few
-entries record something that went wrong and what replaced it.
+Why this project is built the way it is. Deliberately terse: the decision, the
+reason, and what would change it. A few entries record something that went wrong.
 
-Newest entries at the bottom.
-
----
-
-## D1 — No Firestore, no vector embeddings. RAG reads `menu.json` directly.
-
-The reference codelab offers an optional Firestore path with vector search over
-embedded menu items. Dropped.
-
-**Why:** the grading asks for responses grounded in a menu dataset. With 8 items,
-a keyword scan over name/description/tags retrieves exactly as correctly as a
-vector index would — an embedding model cannot beat exact matching on a corpus
-this small. Firestore would add a database, an embedding API call per query, an
-extra IAM role, and a seeding script, for zero difference in what the barista says.
-
-**When to revisit:** if the menu grows past roughly 50 items, or if you want the
-agent to match on meaning rather than words ("something to wake me up" finding
-Cold Brew with no shared keyword). At that point add embeddings, and Firestore
-only if you also need the menu editable without a redeploy.
+Detail lives in the code and `README.md`; this file exists to answer "why?" quickly.
 
 ---
 
-## D2 — Auth: AI Studio API key locally, Vertex AI service account on Cloud Run.
+**D1 — No Firestore, no embeddings. Retrieval reads `menu.json`.**
+On eight items, keyword matching retrieves as well as a vector index would, and
+Firestore would add a database, an embedding call per question, and an IAM role for
+no change in grounding. *Revisit at ~50+ items, or if semantic matches are wanted
+("something to wake me up" → Cold Brew).*
 
-Local `.env` holds `GOOGLE_API_KEY`. Cloud Run instead gets
-`GOOGLE_GENAI_USE_VERTEXAI=TRUE` plus project and location, and authenticates as
-its runtime service account.
+**D2 — API key locally, service-account Vertex AI on Cloud Run.**
+No gcloud CLI on the dev machine, so no Application Default Credentials — a key is
+the only local option. In the cloud a service account is free, so no credential
+exists to leak. The SDK reads its backend from env vars, so **no code branches**.
+*Cost: needs the Vertex API enabled and `roles/aiplatform.user` granted.*
 
-**Why:** you have no gcloud CLI locally, so Application Default Credentials are
-not obtainable on your machine — an API key is the only local option. In the
-cloud the opposite is true: a service account is available for free and means no
-key exists in the deployed config to leak or rotate. The `google-genai` client
-picks its backend up from environment variables, so **no code branches on this**.
-Same `agent.py` and `app.py` in both places; only the environment differs.
+**D3 — `menu.json` opened relative to `agent.py`, not the CWD.**
+`open("menu.json")` works only if the process starts in the project root. Cloud Run's
+buildpack launcher doesn't guarantee that, and the failure is ugly: deploys green,
+then every recommendation dies on `FileNotFoundError`.
 
-**The rejected alternative:** using the API key in both places is one less concept
-to explain, but it puts a long-lived credential into the Cloud Run service config,
-and the codelab this is graded against uses the Vertex path.
+**D4 — The model name is an env var, not a literal.**
+Normally a constant that never changes shouldn't be configurable. This one earned it:
+see D10. Four model changes, zero code edits.
 
-**What this costs you:** the deploy needs the Vertex AI API enabled and the
-service account granted `roles/aiplatform.user`. Both are in the README's
-Cloud Shell block.
+**D5 — One `test_menu.py`, plain asserts, no pytest.**
+Retrieval is the only non-trivial logic, and the allergen filter is where a bug is
+actually dangerous. A framework would be more scaffolding than code under test.
+Runs offline: no key, no network, no cost.
 
----
+**D6 — Retrieval lives in its own module.**
+`menu_tool.py` imports nothing from Google, so its test needs no credentials. If the
+logic sat in `agent.py`, testing a keyword scan would require building an `LlmAgent`.
 
-## D3 — `menu.json` is opened relative to `agent.py`, not the working directory.
+**D7 — `run_async()`, not the codelab's `run_debug()`.**
+`run_debug`'s own docstring says debugging-only and points to `run_async` for
+production. This gets a public URL. It also exposes the individual tool events —
+which is what powers the "Grounded in N menu items" disclosure. *Cost: ~15 lines.*
 
-`Path(__file__).parent / "menu.json"` rather than `open("menu.json")`.
+**D8 — The session is created explicitly.**
+`Runner.auto_create_session` defaults to `False`, so `run_async` with a fresh session
+id raises `SessionNotFoundError` — the app would have crashed on its first message.
+`run_debug` hid this by doing it internally.
 
-**Why:** the codelab's version works only when the process happens to start in the
-project root. Cloud Run's buildpack launcher does not guarantee that, and the
-failure mode is ugly — the container builds and deploys green, then every single
-recommendation fails at runtime with `FileNotFoundError` because the agent cannot
-read its own menu. One `Path` call removes the whole class of bug.
+**D9 — One long-lived event loop on a daemon thread.**
+`asyncio.run()` per message closes the loop its API client is bound to, so the first
+message works and the **second** fails with "Event loop is closed". Streamlit also
+re-runs on different threads, hence `run_coroutine_threadsafe` rather than
+`run_until_complete`. *Verified with three messages from three threads.*
 
----
+**D10 — Model: `gemini-3.5-flash`, after four attempts.**
+`2.5-flash` is retired for new API keys (404); `3.6-flash` and `3.7-flash` both
+rate-limited. Not an alias like `flash-latest`: a model that moves under a graded
+submission is a risk, not a convenience.
 
-## D4 — The Gemini model name is an environment variable, not a literal.
+**D11 — The tool reports unsafe drinks instead of hiding them.**
+The filter removed unsafe drinks so completely that the agent couldn't tell "we don't
+sell it" from "it would hurt you" — asked about hazelnut, it said *"we don't have
+any"*, which is false. Now `search_menu` also returns `unsafe_matches`, named
+honestly and never offered. *The one failure mode here with consequences off-screen.*
 
-`os.getenv("BARISTA_MODEL", "gemini-2.5-flash")`.
+**D12 — Quota errors get plain English; everything else shows its real text.**
+A traceback in the chat window reads as a broken app. Swallowing genuine errors would
+make it undebuggable, so only quota is special-cased.
 
-**Why:** normally a value that never changes should not be configurable. This one
-is genuinely uncertain: the codelab page names a model string I could not verify
-against the installed SDK, and a wrong model name fails at the first message with
-a 404. As an env var, correcting it is a one-word change in `.env` or in the
-deploy command — no code edit, no redeploy of changed source.
+**D13 — Quota is 20 requests/day/model, and retries don't fix it.**
+One chat turn costs ~2 requests, so the free tier is 8–10 turns per model per day.
+The ADK docs suggest client-side retries; useless against a daily cap, and they'd
+hide the cause behind a spinner. Deliberately not added. *Doesn't affect Cloud Run —
+Vertex bills against project quota.*
 
----
+**D14 — A silent failed edit.**
+The D12 message was reported as written but wasn't: `str.replace()` on a
+non-matching pattern returns the string unchanged instead of raising. **Check the
+file, not the report** — any pattern-based edit must assert the pattern matched.
 
-## D5 — One `test_menu.py` with plain asserts. No pytest, no fixtures.
-
-**Why:** the retrieval function is the only non-trivial logic in the project, and
-the allergen filter is the part where a bug is actually dangerous rather than just
-wrong. That deserves a check that fails loudly. It deserves exactly one — a test
-framework, config, and directory layout would be more scaffolding than code under
-test. Runs offline with `python test_menu.py`: no API key, no network, no cost.
-
----
-
-## D6 — Retrieval lives in `menu_tool.py`, separate from `agent.py`.
-
-**Why:** it makes `test_menu.py` runnable with no ADK import, no API key and no
-network. If the retrieval logic sat inside `agent.py`, testing it would mean
-constructing an `LlmAgent` first, and the test would start depending on
-credentials to check a keyword scan. One extra file buys a test that always runs.
-
----
-
-## D7 — `run_async()`, not `run_debug()`.
-
-The codelab uses `runner.run_debug(prompt, session_id=...)`. I read the installed
-ADK 2.2.0 source instead of copying it, and `run_debug`'s own docstring says:
-*"This is for debugging and experimentation only. For production use, please use
-the standard run_async() method."* It also prints to stdout and hides event
-streaming — both wrong for a Streamlit UI.
-
-**What it cost:** about fifteen more lines in `app.py` to iterate events myself.
-**What it bought:** access to the tool-call events, which is how the "Grounded in
-N menu items" expander can show what RAG actually retrieved.
-
----
-
-## D8 — The Streamlit session must be created explicitly.
-
-`Runner.__init__` has `auto_create_session: bool = False`. So calling
-`run_async()` with a fresh session id raises `SessionNotFoundError` — the app
-would have crashed on the very first message.
-
-**Why this is worth writing down:** the codelab never mentions it, because
-`run_debug()` handles session creation internally. The moment you move to
-`run_async()` you inherit the responsibility. `_ensure_session()` in `app.py`
-does a `get_session` then `create_session` if absent.
-
----
-
-## D9 — One long-lived event loop on a background thread.
-
-`app.py` starts a single `asyncio` loop in a daemon thread (cached by
-`st.cache_resource`) and submits work with `asyncio.run_coroutine_threadsafe`.
-
-**Why not the obvious `asyncio.run(...)` per message:** `asyncio.run` closes its
-loop when it returns, but the cached genai client keeps connections bound to the
-loop that created them. The first message works and the **second** one fails with
-"Event loop is closed" — the worst kind of bug, because the smoke test passes and
-the demo dies on the follow-up question.
-
-**Why not just `st.cache_resource` on a plain loop:** Streamlit runs each re-run
-on a possibly different thread, and `run_until_complete` from a foreign thread
-isn't safe. `run_coroutine_threadsafe` is designed for exactly this.
-
-Verified with a throwaway script that sent three messages from three different
-threads through this exact pattern.
-
----
-
-## D10 — Model: `gemini-3.5-flash`. This took four tries and the env var earned itself.
-
-1. `gemini-2.5-flash` (my initial default) → **404**: *"no longer available to new
-   users"*. Retired for new API keys.
-2. `gemini-3.6-flash` (what the 404 recommended, near the codelab's `3.5-flash`)
-   → worked, then **429 RESOURCE_EXHAUSTED** / **503**. Tight free-tier quota.
-3. `gemini-3.7-flash` → answered 3/3 on a direct probe, then started returning
-   **503** through ADK a few minutes later.
-4. `gemini-3.5-flash` → reliably clean across every test, including the full
-   3-turn conversation. This is the default.
-
-The quota is **per model**, not per project: with `3.6` and `3.7` both throttled,
-`3.5` kept answering on the same key in the same minute. Worth knowing before you
-demo — the 503 message says "high demand", but the cause is usually your quota on
-that specific model, and the fix is another model rather than waiting.
-
-**Why this vindicates D4:** four model changes, zero code edits. Switching is
-`BARISTA_MODEL=gemini-3.7-flash streamlit run app.py`.
-
-**Why not `gemini-flash-latest`:** an alias that silently moves under a graded
-submission is a risk, not a convenience. Pin it.
-
-**On Cloud Run this matters less** — Vertex AI bills against project quota rather
-than the AI Studio free tier.
-
----
-
-## D11 — The tool reports unsafe drinks instead of hiding them.
-
-Found by reading the first live transcript, not by testing. Asked "do you have
-anything with hazelnut?" by a lactose-intolerant customer, the agent said *"We
-don't currently have any drinks with hazelnut."* That is false — we serve a
-Hazelnut Mocha; it just contains dairy. The allergen filter had removed it so
-completely that the agent couldn't distinguish "we don't sell it" from "it would
-hurt you".
-
-**The fix:** `search_menu` now also returns `unsafe_matches` — drinks that matched
-the query but were filtered, with their allergens. The instruction requires
-naming them honestly and never offering them. The same question now answers:
-*"We do serve a Hazelnut Mocha, but it contains dairy, so it isn't safe with your
-lactose intolerance."*
-
-**Why this wasn't optional:** a customer told "we don't have that" may go looking
-for it elsewhere. Being wrong about an allergen is the one failure in this app
-with consequences outside the screen.
-
----
-
-## D12 — Rate-limit errors get a plain-English message, not a stack trace.
-
-`app.py` catches 429/503/RESOURCE_EXHAUSTED and tells the user the machine is
-backed up, naming the model and the `BARISTA_MODEL` escape hatch. Every other
-exception still shows its real text — swallowing genuine errors would make this
-undebuggable.
-
-**Why:** given how easily the free tier throttles (see D10), a grader clicking
-around is reasonably likely to hit it. A traceback in the chat window reads as a
-broken app; a sentence reads as a busy one.
-
----
-
-## D13 — The real quota shape: 20 requests per day, per model. Retries don't help.
-
-D10 called this "per-model quota" without a number. The precise error names it:
-
-```
-quotaId:     GenerateRequestsPerDayPerProjectPerModel-FreeTier
-quotaValue:  20
-model:       gemini-3.5-flash
-retryDelay:  50s
-```
-
-**Per DAY, per model, per project.** And one chat turn costs about two requests —
-one where the model decides to call `search_menu`, one where it writes the answer
-from the result. So the free tier is roughly **8–10 turns of conversation per model
-per day**, which is why testing burned through it so fast.
-
-**Why the ADK docs' advice doesn't apply here.** The official mitigations are
-"request higher quota" or "enable client-side retries". Retries are the wrong tool
-for a daily cap: the `retryDelay: 50s` is generic, and waiting 50 seconds only buys
-one more request out of a bucket that is already empty until the day resets. Blind
-retries would also hide the real cause behind a slow spinner. Deliberately not added.
-
-**What actually works, cheapest first:**
-
-1. Switch model — the cap is per model, so each one has its own 20.
-2. Use `test_menu.py` for logic work; it costs nothing.
-3. Paid tier for unrestricted local development.
-
-**And the part worth remembering: none of this affects the deployed app.** Cloud Run
-authenticates through Vertex AI, which bills against project quota, not the AI Studio
-free tier. The cap is a local-development constraint only.
-
----
-
-## D14 — A silent failed edit, and the check that would have caught it.
-
-The friendly rate-limit message described in D12 **was never actually in `app.py`**.
-The edit used `str.replace()` on a pattern that didn't match, and `str.replace`
-returns the string unchanged rather than raising — so it reported success and wrote
-the file back untouched. The raw traceback stayed in place, which is what the user
-saw when they hit the quota.
-
-**The lesson, generalised:** an edit that cannot fail is an edit that cannot be
-trusted. Anything that rewrites a file by pattern needs to assert the pattern
-matched, or use a tool that errors on a miss. Checking the *report* is not checking
-the *file*.
-
-Fixed by re-reading the actual file contents and editing against them, then grepping
-to confirm the new code is present.
+**D15 — No automatic model failover.**
+Tempting after D13, but it's compensating code for a free-tier limit the deployed app
+doesn't have, and failover belongs in a gateway, not in `app.py`. The real objection:
+the allergen *filter* is deterministic, but the model must still **pass** the allergy
+each turn, and swapping models silently varies how reliably it does — quality
+variance on the one safety-relevant path. It also destroys a stable cost per request.
+*Revisit with real traffic and an availability target: then a router, a pinned and
+tested model set, log which model served each request, and alert on the fallback rate
+rather than hiding it.*
