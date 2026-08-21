@@ -138,8 +138,28 @@ if prompt := st.chat_input("What are you in the mood for?"):
                 answer, retrieved = run_sync(
                     _ask(runner, prompt, st.session_state.session_id, st.session_state.user_id)
                 )
-            except Exception as exc:  # surface the real cause; don't swallow it
-                answer, retrieved = f"Something went wrong talking to Gemini:\n\n`{exc}`", []
+            except Exception as exc:
+                text = str(exc)
+                retrieved = []
+                if "RESOURCE_EXHAUSTED" in text or "429" in text or "UNAVAILABLE" in text:
+                    # The free tier caps requests per DAY per model, so "wait and
+                    # retry" is the wrong advice — switching model is what works.
+                    daily = "PerDay" in text or "per day" in text.lower()
+                    detail = (
+                        "is used up for today. The free tier allows 20 requests per day "
+                        "per model, and each chat turn costs about two."
+                        if daily else
+                        "was hit. This one is usually a short burst limit — try again shortly."
+                    )
+                    answer = (
+                        f"Sorry, the coffee machine is backed up. Gemini quota on "
+                        f"`{MODEL}` {detail}\n\nTo switch to a model with its own quota, "
+                        "stop the app and restart it with:\n\n"
+                        '`$env:BARISTA_MODEL="gemini-3.7-flash"`\n\n`streamlit run app.py`'
+                    )
+                else:
+                    # Anything else is a real bug — show it rather than hide it.
+                    answer = f"Something went wrong talking to Gemini:\n\n`{exc}`"
         answer = answer or "Sorry, I didn't catch that — say it again?"
         st.markdown(answer)
         if retrieved:

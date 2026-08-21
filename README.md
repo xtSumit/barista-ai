@@ -106,10 +106,30 @@ the SDK uses `ENTERPRISE` and warns about the conflict.
 ### Models
 
 The default is `gemini-3.5-flash`. Override with `BARISTA_MODEL` — no code change.
-`gemini-2.5-flash` is retired for new API keys, and free-tier quota is *per model*
-— `gemini-3.6-flash` and `gemini-3.7-flash` both throttled during testing while
-`3.5-flash` stayed available. If messages start failing, this is the first knob to
-turn: `BARISTA_MODEL=gemini-3.7-flash streamlit run app.py`.
+`gemini-2.5-flash` is retired for new API keys. If messages start failing, this is
+the first knob to turn: `$env:BARISTA_MODEL="gemini-3.7-flash"` then rerun.
+
+### Free-tier quota
+
+An AI Studio key on the free tier is capped at **20 requests per day, per model**
+(quota id `GenerateRequestsPerDayPerProjectPerModel-FreeTier`). One chat turn costs
+about **two** requests — one where the model decides to call the tool, one where it
+writes the answer — so 20 requests is roughly **8–10 turns of conversation, per
+model, per day**.
+
+When it runs out the API returns `429 RESOURCE_EXHAUSTED`. Retrying does not fix it:
+the cap is daily, not a burst window, so the suggested retry delay only buys another
+single request. Three things that do work:
+
+1. **Switch model.** The cap is *per model*, so each carries its own 20 requests.
+   `$env:BARISTA_MODEL="gemini-3.7-flash"` then `streamlit run app.py`.
+2. **Do logic work offline.** `python test_menu.py` exercises retrieval and allergen
+   filtering without an API call. Spend real requests only on the conversation.
+3. **Move to the paid tier** for unrestricted local development — enable billing on
+   the Cloud project the API key belongs to.
+
+**This does not affect the deployed app.** On Cloud Run the SDK authenticates through
+Vertex AI, which bills against project quota rather than the AI Studio free tier.
 
 ## Deploy to Cloud Run (from Google Cloud Shell)
 
@@ -176,6 +196,7 @@ deliverable.
 - **First message 403s** — step 4 didn't apply, or it needs a minute to propagate.
 - **404 on the model** — override it without touching code:
   add `,BARISTA_MODEL=<a-model-you-have-access-to>` to `--set-env-vars`.
-- **429 / 503 on every message** — free-tier quota, not a bug. Vertex AI on Cloud
+- **429 / 503 on every message** — free-tier quota, not a bug; see
+  [Free-tier quota](#free-tier-quota). Vertex AI on Cloud
   Run uses project quota rather than the AI Studio free tier, so this is mostly a
   local-testing problem. Wait a minute, or switch `BARISTA_MODEL`.
