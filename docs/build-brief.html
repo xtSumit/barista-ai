@@ -234,7 +234,7 @@
       </div>
       <div class="file">
         <div class="fname">test_menu.py</div>
-        <div class="fbody">Six checks on retrieval and allergen safety. Run with <code>python test_menu.py</code>.
+        <div class="fbody">Nine checks on retrieval and allergen safety. Run with <code>.\venv\Scripts\python.exe test_menu.py</code>.
           <span class="know">Offline and free &mdash; no key, no network, no cost. Run it before you present; it&rsquo;s your proof the allergen filter doesn&rsquo;t leak.</span></div>
       </div>
       <div class="file">
@@ -313,7 +313,7 @@
           </g>
 
           <path d="M 740 67 H 886 V 288 H 70 V 96" stroke="currentColor" stroke-width="1.2" fill="none" marker-end="url(#ah)" stroke-dasharray="5 3"></path>
-          <text x="470" y="281" font-family="IBM Plex Sans, sans-serif" font-size="10" fill="currentColor" text-anchor="middle" opacity="0.75">grounded answer, plus the list of drinks it retrieved</text>
+          <text x="470" y="281" font-family="IBM Plex Sans, sans-serif" font-size="10" fill="currentColor" text-anchor="middle" opacity="0.75">grounded answer, composed only from the drinks it retrieved</text>
         </svg>
       </div>
       <figcaption>One message&rsquo;s round trip. The model is never handed the whole menu &mdash; only the drinks <code>search_menu()</code> chose to return, which is what stops it inventing a drink or a price.</figcaption>
@@ -334,7 +334,7 @@
 excluded: ["dairy"]   <span class="c">// 5 drinks removed before the model saw them</span></code></pre>
       </li>
       <li><strong>Gemini writes the answer</strong> using only those four drinks, taking the price from the retrieved data rather than from memory: <em>&ldquo;I highly recommend our Decaf Soy Caramel Macchiato for $5.35&hellip;&rdquo;</em></li>
-      <li><strong>Streamlit displays it</strong> and records which drinks were retrieved, which is what the <span class="pill pill-ok">Grounded in 4 menu items</span> expander shows. That expander is your on-screen evidence of RAG &mdash; open it during the demo.</li>
+      <li><strong>Streamlit displays it.</strong> The customer reads a reply built from those four drinks and nothing else &mdash; the other five were never in the model&rsquo;s context to mention.</li>
     </ol>
   </section>
 
@@ -373,7 +373,7 @@ excluded: ["dairy"]   <span class="c">// 5 drinks removed before the model saw t
     <div class="grid">
       <div>
         <h3><code>run_async()</code> instead of <code>run_debug()</code></h3>
-        <p>The codelab calls <code>runner.run_debug()</code>. Its own docstring in the installed SDK says it is for debugging and experimentation only, and that production should use <code>run_async()</code>. This is going to a public URL, so it uses <code>run_async()</code> &mdash; which also gives access to the individual events, and that is how the app knows what the tool retrieved.</p>
+        <p>The codelab calls <code>runner.run_debug()</code>. Its own docstring in the installed SDK says it is for debugging and experimentation only, and that production should use <code>run_async()</code>. This is going to a public URL, so it uses <code>run_async()</code> &mdash; which also gives access to the individual events, so each tool call and its result can be read off the stream while debugging rather than staying hidden inside a helper.</p>
       </div>
       <div>
         <h3>The session has to be created explicitly</h3>
@@ -411,12 +411,12 @@ excluded: ["dairy"]   <span class="c">// 5 drinks removed before the model saw t
     <h2>Demo script</h2>
     <p>Four prompts, in this order. Each demonstrates a different graded property, so say which as you type it.</p>
     <ol class="trace">
-      <li><strong>&ldquo;I want something strong and iced&rdquo;</strong> &rarr; Cold Brew. <em>Say:</em> &ldquo;that came from the menu file, not the model&rsquo;s memory&rdquo; &mdash; then open the grounding expander.</li>
+      <li><strong>&ldquo;I want something strong and iced&rdquo;</strong> &rarr; Cold Brew. <em>Say:</em> &ldquo;that came from the menu file, not the model&rsquo;s memory&rdquo; &mdash; then point at the sidebar: same drink, same price, read straight out of <code>menu.json</code>.</li>
       <li><strong>&ldquo;I&rsquo;m lactose intolerant but want something sweet&rdquo;</strong> &rarr; the Decaf Soy Caramel Macchiato, and nothing with dairy. <em>Say:</em> &ldquo;five drinks were removed in Python before the model saw the list.&rdquo;</li>
       <li><strong>&ldquo;Do you have anything with hazelnut?&rdquo;</strong> &rarr; admits the Hazelnut Mocha exists but is unsafe for you. <em>Say:</em> &ldquo;it stays honest instead of pretending we don&rsquo;t stock it.&rdquo;</li>
       <li><strong>&ldquo;What&rsquo;s in it?&rdquo;</strong> &rarr; answers about the drink from turn two without asking which. <em>Say:</em> &ldquo;that&rsquo;s the ADK session &mdash; the conversation is replayed on every turn.&rdquo;</li>
     </ol>
-    <p>Have <code>python test_menu.py</code> already run in a terminal tab. Six passing checks on allergen safety is a strong thing to be able to point at.</p>
+    <p>Have <code>.\venv\Scripts\python.exe test_menu.py</code> already run in a terminal tab. Nine passing checks on allergen safety is a strong thing to be able to point at.</p>
   </section>
 
   <section>
@@ -439,7 +439,7 @@ excluded: ["dairy"]   <span class="c">// 5 drinks removed before the model saw t
     <details class="q">
       <summary>How do you know it isn&rsquo;t making up prices?</summary>
       <div class="a">
-        <p>Three reasons, in increasing strength. The instruction forbids recommending anything the tool didn&rsquo;t return. The model only ever <em>sees</em> the drinks the tool returned, so there is nothing else to draw on. And the UI shows exactly what was retrieved for each answer, so any invention would be visible on screen.</p>
+        <p>Three reasons, in increasing strength. The instruction forbids recommending anything the tool didn&rsquo;t return. The model only ever <em>sees</em> the drinks the tool returned, so there is nothing else to draw on. And every price in a reply can be checked against the menu in the sidebar, which is rendered from the same <code>menu.json</code> the retrieval reads &mdash; if the two disagree, the model invented something.</p>
       </div>
     </details>
 
@@ -506,7 +506,7 @@ excluded: ["dairy"]   <span class="c">// 5 drinks removed before the model saw t
       <dt>Agent</dt><dd>A model that can decide to take actions &mdash; here, deciding to search the menu &mdash; rather than only producing text.</dd>
       <dt>Tool / function calling</dt><dd>Giving the model a description of a function it may call. The model doesn&rsquo;t run your code; it replies &ldquo;call this, with these arguments&rdquo;, and the framework runs it and returns the result.</dd>
       <dt>RAG</dt><dd>Retrieval-Augmented Generation. Fetch relevant data at question time and have the model answer from that, instead of from what it memorised in training.</dd>
-      <dt>Grounding</dt><dd>The property that an answer traces back to real supplied data. Your expander showing the retrieved drinks is grounding made visible.</dd>
+      <dt>Grounding</dt><dd>The property that an answer traces back to real supplied data. Here the reply is composed only from the rows <code>search_menu()</code> returned, so it traces back to <code>menu.json</code> rather than to training data.</dd>
       <dt>Instruction</dt><dd>The standing brief in <code>agent.py</code> that shapes every reply &mdash; tone, when to call the tool, and the rules about allergens.</dd>
       <dt>Session</dt><dd>The stored conversation. It is why the agent can resolve &ldquo;what&rsquo;s in it?&rdquo; without asking what &ldquo;it&rdquo; is.</dd>
       <dt>Buildpack</dt><dd>How Cloud Run builds a container from your source. It detects Python, reads <code>requirements.txt</code>, and produces an image &mdash; so you never wrote a Dockerfile.</dd>

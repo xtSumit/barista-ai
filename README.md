@@ -56,23 +56,29 @@ cd ai-barista-adk
 
 # 1. Virtual environment
 py -3.13 -m venv venv
-.\venv\Scripts\Activate.ps1
 
 # 2. Dependencies
-pip install -r requirements.txt
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
 
 # 3. Your Gemini key — get one at https://aistudio.google.com/apikey
 Copy-Item .env.example .env
 notepad .env       # paste the key into GOOGLE_API_KEY, save, close
 
 # 4. Offline sanity check (no key needed)
-python test_menu.py
+.\venv\Scripts\python.exe test_menu.py
 
 # 5. Run
-streamlit run app.py
+.\venv\Scripts\python.exe -m streamlit run app.py
 ```
 
 Opens at http://localhost:8501.
+
+Calling `.\venv\Scripts\python.exe` directly does the same job as activating the
+venv, and sidesteps `Activate.ps1` — which a default Windows execution policy
+blocks. That failure reads like a broken project when it is only a shell setting,
+so the activation step is skipped rather than documented around. To activate
+anyway, run `Set-ExecutionPolicy -Scope Process RemoteSigned` first; `pip` and
+`streamlit` then work unprefixed.
 
 ### Try these
 
@@ -121,9 +127,26 @@ When it runs out the API returns `429 RESOURCE_EXHAUSTED`. Retrying does not fix
 the cap is daily, not a burst window, so the suggested retry delay only buys another
 single request. Three things that do work:
 
-1. **Switch model.** The cap is *per model*, so each carries its own 20 requests.
-   `$env:BARISTA_MODEL="gemini-3.7-flash"` then `streamlit run app.py`.
-2. **Do logic work offline.** `python test_menu.py` exercises retrieval and allergen
+1. **Switch model.** The cap is *per model*, so each one carries its own 20
+   requests. Set `BARISTA_MODEL` in `.env` and restart the app — `.env.example`
+   lists the alternatives, newest first:
+
+   | Model | |
+   |---|---|
+   | `gemini-3.7-flash` | `gemini-3.5-flash-lite` |
+   | `gemini-3.6-flash` | `gemini-3.1-flash-lite` |
+   | `gemini-3.5-flash` (default) | |
+
+   Each was verified by calling it, not by reading `models.list` — that endpoint
+   advertises `gemini-2.5-flash` and `-flash-lite` as supporting
+   `generateContent`, but both return 404 "no longer available to new users".
+   Aliases such as `gemini-flash-latest` are omitted on purpose: an alias shares
+   the quota of the model it resolves to, so switching to one may free nothing.
+
+   **The quota day is a US-Pacific day.** Buckets reset at midnight PT, so an
+   evening session and the following morning's can fall in the same quota day —
+   which looks like a reset that never happened.
+2. **Do logic work offline.** `.\venv\Scripts\python.exe test_menu.py` exercises retrieval and allergen
    filtering without an API call. Spend real requests only on the conversation.
 3. **Move to the paid tier** for unrestricted local development — enable billing on
    the Cloud project the API key belongs to.

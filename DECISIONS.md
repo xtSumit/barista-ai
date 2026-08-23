@@ -39,8 +39,9 @@ logic sat in `agent.py`, testing a keyword scan would require building an `LlmAg
 
 **D7 — `run_async()`, not the codelab's `run_debug()`.**
 `run_debug`'s own docstring says debugging-only and points to `run_async` for
-production. This gets a public URL. It also exposes the individual tool events —
-which is what powers the "Grounded in N menu items" disclosure. *Cost: ~15 lines.*
+production. This gets a public URL. It also exposes the individual tool events, so
+each tool call and its result can be read off the stream while debugging instead of
+being hidden inside a helper. *Cost: ~15 lines.*
 
 **D8 — The session is created explicitly.**
 `Runner.auto_create_session` defaults to `False`, so `run_async` with a fresh session

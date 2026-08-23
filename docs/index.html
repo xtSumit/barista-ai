@@ -313,7 +313,7 @@
           </g>
 
           <path d="M 740 67 H 886 V 288 H 70 V 96" stroke="currentColor" stroke-width="1.2" fill="none" marker-end="url(#ah)" stroke-dasharray="5 3"></path>
-          <text x="470" y="281" font-family="IBM Plex Sans, sans-serif" font-size="10" fill="currentColor" text-anchor="middle" opacity="0.75">grounded answer, plus the drinks it was grounded in</text>
+          <text x="470" y="281" font-family="IBM Plex Sans, sans-serif" font-size="10" fill="currentColor" text-anchor="middle" opacity="0.75">grounded answer, composed only from the retrieved drinks</text>
         </svg>
       </div>
       <figcaption>The model is never handed the full menu &mdash; only the drinks <code>search_menu()</code> returned. Removing a drink from those results removes the model&rsquo;s ability to recommend it.</figcaption>
@@ -332,7 +332,7 @@
           Espresso, Oat Milk Flat White
 excluded: ["dairy"]   <span class="c">// 5 of 8 drinks removed pre-model</span></code></pre>
       </li>
-      <li><strong>The model composes the answer</strong> from those four drinks, taking the price from retrieved data rather than memory &mdash; and the UI records which drinks the answer was grounded in, shown inline as <span class="pill pill-ok">Grounded in 4 menu items</span>.</li>
+      <li><strong>The model composes the answer</strong> from those four drinks, taking the price from retrieved data rather than memory. The five excluded drinks were never in its context, so they cannot appear in the reply.</li>
     </ol>
   </section>
 
@@ -358,7 +358,7 @@ excluded: ["dairy"]   <span class="c">// 5 of 8 drinks removed pre-model</span><
       </div>
       <div class="file">
         <div class="fname">test_menu.py</div>
-        <div class="fbody">Six assertions covering retrieval relevance and allergen safety. Plain <code>assert</code>, no framework. <span class="lines">Runs offline and free.</span></div>
+        <div class="fbody">Nine assertions covering retrieval relevance and allergen safety. Plain <code>assert</code>, no framework. <span class="lines">Runs offline and free.</span></div>
       </div>
       <div class="file">
         <div class="fname">requirements.txt</div>
@@ -396,7 +396,7 @@ excluded: ["dairy"]   <span class="c">// 5 of 8 drinks removed pre-model</span><
 
       <div class="dec"><div class="marker"></div><div>
         <h3>Production API over the convenience helper</h3>
-        <p>The framework offers a one-line helper for running an agent. Reading its source showed a docstring stating it is for debugging only and that production should use the streaming API. Taking the longer path also exposed the individual tool-call events &mdash; which is what makes the &ldquo;grounded in N items&rdquo; disclosure possible. It also surfaced a default that would have crashed the first message: sessions are not auto-created, so the app creates its own.</p>
+        <p>The framework offers a one-line helper for running an agent. Reading its source showed a docstring stating it is for debugging only and that production should use the streaming API. Taking the longer path also exposed the individual tool-call events, so each tool call and its result can be read off the stream while debugging. It also surfaced a default that would have crashed the first message: sessions are not auto-created, so the app creates its own.</p>
       </div></div>
 
       <div class="dec"><div class="marker"></div><div>
@@ -460,17 +460,17 @@ excluded: ["dairy"]   <span class="c">// 5 of 8 drinks removed pre-model</span><
     <h2>Local setup</h2>
     <pre><code><span class="c"># 1. environment</span>
 py -3.13 -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
 
 <span class="c"># 2. credentials — .env is gitignored</span>
 Copy-Item .env.example .env    <span class="c"># then paste your API key in</span>
 
 <span class="c"># 3. offline checks — no key or network needed</span>
-python test_menu.py
+.\venv\Scripts\python.exe test_menu.py
 
 <span class="c"># 4. run</span>
-streamlit run app.py           <span class="c"># http://localhost:8501</span></code></pre>
+.\venv\Scripts\python.exe -m streamlit run app.py</code></pre>
+    <p>Calling the venv&rsquo;s <code>python.exe</code> directly replaces activating it, and avoids <code>Activate.ps1</code> &mdash; which a default Windows execution policy blocks, failing in a way that reads like a broken project rather than a shell setting. The app opens at <code>http://localhost:8501</code>.</p>
     <p>Deployment is source-based: the platform&rsquo;s buildpacks read <code>requirements.txt</code> and produce a container, so there is no Dockerfile to maintain and no image registry step to script.</p>
   </section>
 
@@ -488,7 +488,7 @@ streamlit run app.py           <span class="c"># http://localhost:8501</span></c
     <details class="q">
       <summary>How is the model prevented from inventing drinks and prices?</summary>
       <div class="a">
-        <p>Structurally rather than by instruction. The model&rsquo;s context contains only the retrieved drinks, so there is no other menu item available to mention. The instruction reinforces it, and the UI displays what was retrieved for each answer, which makes any drift visible rather than silent.</p>
+        <p>Structurally rather than by instruction. The model&rsquo;s context contains only the retrieved drinks, so there is no other menu item available to mention. The instruction reinforces it, and every price in a reply can be checked against the menu in the sidebar, which is rendered from the same <code>menu.json</code> the retrieval reads.</p>
       </div>
     </details>
 

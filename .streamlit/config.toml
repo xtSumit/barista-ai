@@ -1,7 +1,16 @@
-# Warm neighbourhood-café palette. Streamlit's native theming, so the app looks
-# right before a single line of custom CSS is involved.
+# Wabi-sabi palette, warmed towards earth: terracotta, clay-sand, warm paper,
+# dark umber. Streamlit's native theming, so the app looks right before a line
+# of custom CSS is involved.
 [theme]
-primaryColor = "#9C6644"              # espresso — buttons, focus rings, accents
-backgroundColor = "#FBF7F0"           # cream paper
-secondaryBackgroundColor = "#F1E4D3"  # sidebar and chat bubbles
-textColor = "#2E241D"                 # roasted-bean brown, not black
+primaryColor = "#A2705A"              # terracotta — buttons, focus rings, accents
+backgroundColor = "#F3EDE3"           # warm paper, not white
+secondaryBackgroundColor = "#E5DBCB"  # clay-sand — sidebar, chat bubbles
+textColor = "#38302A"                 # dark umber, never black
+font = "serif"                        # quieter than the default sans
+
+# Hide Streamlit's own toolbar — the Deploy button and the kebab menu of
+# developer options belong to whoever is running the app, not to a customer
+# ordering coffee. "minimal" keeps only what has to be shown (a running or
+# stale indicator); "viewer" would keep print and theme options.
+[client]
+toolbarMode = "minimal"

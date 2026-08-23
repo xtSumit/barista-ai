@@ -21,6 +21,23 @@ load_dotenv()
 # Overridable so a model-access problem is an env-var fix, not a code change.
 MODEL = os.getenv("BARISTA_MODEL", "gemini-3.5-flash")
 
+# The free tier allows 20 requests per day *per model*, so a used-up quota is
+# fixed by moving down this list rather than by waiting. Newest first.
+#
+# Every entry was verified on 2026-08-23 by actually calling it. models.list is
+# not enough: it advertises gemini-2.5-flash and -flash-lite with generateContent
+# in supported_actions, but calling either returns 404 "no longer available to
+# new users", so they were removed from this list. Aliases like
+# gemini-flash-latest are left out on purpose too — an alias shares the quota of
+# whatever it resolves to, so switching to one may free nothing.
+MODEL_FALLBACKS = [
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+]
+
 INSTRUCTION = """
 You are the barista at a small neighbourhood coffee shop. You are warm, brief,
 and genuinely helpful — a good barista, not a chatbot reciting a catalogue.
