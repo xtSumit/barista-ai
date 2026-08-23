@@ -205,6 +205,7 @@
       <p>&ldquo;The other half is allergies. If you tell it you&rsquo;re lactose intolerant, that gets passed into the search and dairy drinks are removed <em>before</em> the model ever sees them &mdash; so the model isn&rsquo;t being trusted to remember what has milk in it. It&rsquo;s a filter in code, not a judgement call by the AI.&rdquo;</p>
       <p>&ldquo;It&rsquo;s built on Google&rsquo;s Agent Development Kit with Gemini, the UI is Streamlit, and it deploys to Cloud Run straight from source &mdash; no Dockerfile.&rdquo;</p>
     </div>
+    <p><strong>It is live at <a href="https://coffee-barista-303982266799.us-central1.run.app/">https://coffee-barista-303982266799.us-central1.run.app/</a></strong> &mdash; Cloud Run, source-based deploy, authenticating to Vertex AI as its own service account with no API key anywhere in the image.</p>
     <p>Two sentences to have ready if they only want the headline: <strong>the model never invents a drink, because it only sees what the search function returns. And allergen filtering happens in Python before the model is involved, not in the prompt.</strong></p>
   </section>
 

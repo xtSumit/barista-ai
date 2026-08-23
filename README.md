@@ -5,6 +5,8 @@ A personalized barista agent for a coffee shop. Built with Google's
 `menu.json` dataset, served as a **Streamlit** chat app, and deployed to
 **Cloud Run**.
 
+**Live app: <https://coffee-barista-303982266799.us-central1.run.app/>**
+
 Google Cloud Gen AI Academy APAC (Hack2Skill) — Track 1, Lab 1.
 
 ## What it does
@@ -196,7 +198,7 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 #                      CORS/XSRF are disabled because Cloud Run terminates TLS
 #                      at the proxy and Streamlit otherwise rejects the request.
 # --set-env-vars       switches the SDK from API-key mode to Vertex AI mode
-gcloud run deploy ai-barista \
+gcloud run deploy coffee-barista \
   --source . \
   --region "$REGION" \
   --allow-unauthenticated \
@@ -206,15 +208,16 @@ gcloud run deploy ai-barista \
   --set-env-vars "GOOGLE_GENAI_USE_ENTERPRISE=TRUE,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=global"
 ```
 
-The command prints a `https://ai-barista-....run.app` URL. That URL is the
-deliverable.
+The command prints the service URL, and re-running it redeploys the same
+service rather than creating a second one. This app is live at
+<https://coffee-barista-303982266799.us-central1.run.app/>.
 
 ### If the deploy fails
 
 - **Build fails on permissions** — the Cloud Build service account may need
   `roles/storage.admin`; Cloud Shell usually prompts with the exact grant.
 - **App deploys but the page never loads** — almost always the entrypoint. Check
-  `gcloud run services logs read ai-barista --region "$REGION"` for whether
+  `gcloud run services logs read coffee-barista --region "$REGION"` for whether
   Streamlit bound `$PORT`.
 - **First message 403s** — step 4 didn't apply, or it needs a minute to propagate.
 - **404 on the model** — override it without touching code:
