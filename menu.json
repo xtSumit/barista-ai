@@ -1,147 +1,58 @@
 [
   {
-    "id": "espresso",
-    "name": "Espresso",
-    "price_usd": 2.5,
-    "caffeine_mg": 64,
-    "description": "A single shot pulled short and dense, with a thick crema and a bittersweet, nutty finish. Nothing added.",
-    "tags": [
-      "hot",
-      "strong",
-      "bold",
-      "classic",
-      "quick",
-      "dairy-free",
-      "low-calorie"
-    ],
+    "name": "Espresso Solo",
+    "description": "A single shot of rich, bold espresso.",
+    "price": 2.50,
+    "tags": ["strong", "hot", "dairy-free", "sugar-free"],
     "allergens": []
   },
   {
-    "id": "cold-brew",
-    "name": "Cold Brew",
-    "price_usd": 4.5,
-    "caffeine_mg": 205,
-    "description": "Coarse-ground beans steeped in cold water for 18 hours. Smooth and very low in acidity, served black over ice.",
-    "tags": [
-      "iced",
-      "strong",
-      "bold",
-      "smooth",
-      "dairy-free",
-      "low-calorie",
-      "refreshing"
-    ],
+    "name": "Oat Milk Honey Latte",
+    "description": "Creamy steamed oat milk with espresso and a touch of honey.",
+    "price": 5.00,
+    "tags": ["sweet", "hot", "dairy-free"],
     "allergens": []
   },
   {
-    "id": "cappuccino",
-    "name": "Cappuccino",
-    "price_usd": 4.25,
-    "caffeine_mg": 64,
-    "description": "Equal parts espresso, steamed milk and a deep cap of foam. Balanced and comforting rather than sweet.",
-    "tags": [
-      "hot",
-      "creamy",
-      "classic",
-      "balanced",
-      "foamy"
-    ],
-    "allergens": [
-      "dairy"
-    ]
+    "name": "Cold Brew Coffee",
+    "description": "Smooth, slow-steeped cold brew served over ice.",
+    "price": 4.00,
+    "tags": ["strong", "cold", "dairy-free", "sugar-free"],
+    "allergens": []
   },
   {
-    "id": "oat-flat-white",
-    "name": "Oat Milk Flat White",
-    "price_usd": 4.95,
-    "caffeine_mg": 130,
-    "description": "A double shot under thin, glossy oat milk microfoam. Silky and lightly cereal-sweet with no added sugar.",
-    "tags": [
-      "hot",
-      "creamy",
-      "smooth",
-      "dairy-free",
-      "vegan",
-      "balanced"
-    ],
-    "allergens": [
-      "gluten"
-    ]
+    "name": "Seasonal Pumpkin Latte",
+    "description": "Spiced pumpkin sauce, espresso, and steamed milk, topped with whipped cream.",
+    "price": 5.50,
+    "tags": ["sweet", "hot", "seasonal"],
+    "allergens": ["dairy"]
   },
   {
-    "id": "iced-vanilla-latte",
-    "name": "Iced Vanilla Latte",
-    "price_usd": 5.25,
-    "caffeine_mg": 130,
-    "description": "Espresso, cold milk and vanilla syrup over ice. Our most popular sweet drink and an easy first coffee.",
-    "tags": [
-      "iced",
-      "sweet",
-      "creamy",
-      "smooth",
-      "refreshing",
-      "beginner-friendly"
-    ],
-    "allergens": [
-      "dairy"
-    ]
+    "name": "Classic Croissant",
+    "description": "Flaky, buttery traditional French pastry.",
+    "price": 3.50,
+    "tags": ["bakery", "savory"],
+    "allergens": ["wheat", "dairy"]
   },
   {
-    "id": "hazelnut-mocha",
-    "name": "Hazelnut Mocha",
-    "price_usd": 5.5,
-    "caffeine_mg": 145,
-    "description": "Dark chocolate ganache and toasted hazelnut syrup stirred into espresso and steamed milk, finished with whipped cream.",
-    "tags": [
-      "hot",
-      "sweet",
-      "chocolate",
-      "indulgent",
-      "dessert",
-      "creamy"
-    ],
-    "allergens": [
-      "dairy",
-      "nuts"
-    ]
+    "name": "Vegan Blueberry Muffin",
+    "description": "Soft, sweet muffin packed with real blueberries, entirely plant-based.",
+    "price": 3.75,
+    "tags": ["bakery", "sweet", "dairy-free", "vegan"],
+    "allergens": ["wheat"]
   },
   {
-    "id": "decaf-soy-caramel-macchiato",
-    "name": "Decaf Soy Caramel Macchiato",
-    "price_usd": 5.35,
-    "caffeine_mg": 4,
-    "description": "Swiss-water decaf espresso layered over sweetened soy milk and finished with a vegan salted caramel drizzle. All the ritual, none of the buzz, and no dairy.",
-    "tags": [
-      "iced",
-      "sweet",
-      "decaf",
-      "creamy",
-      "evening",
-      "dairy-free",
-      "vegan",
-      "low-caffeine"
-    ],
-    "allergens": [
-      "soy"
-    ]
+    "name": "Nitro Cold Brew",
+    "description": "Cold brew infused with nitrogen for a super smooth, creamy head.",
+    "price": 4.50,
+    "tags": ["strong", "cold", "dairy-free", "sugar-free"],
+    "allergens": []
   },
   {
-    "id": "affogato",
-    "name": "Affogato",
-    "price_usd": 6.0,
-    "caffeine_mg": 64,
-    "description": "A scoop of vanilla bean gelato drowned in a fresh double shot. Half drink, half dessert, best eaten with a spoon.",
-    "tags": [
-      "hot",
-      "sweet",
-      "dessert",
-      "indulgent",
-      "creamy",
-      "treat"
-    ],
-    "allergens": [
-      "dairy",
-      "egg"
-    ]
+    "name": "Iced Caramel Macchiato",
+    "description": "Chilled milk and vanilla syrup marked with espresso and caramel drizzle.",
+    "price": 5.25,
+    "tags": ["sweet", "cold"],
+    "allergens": ["dairy"]
   }
 ]

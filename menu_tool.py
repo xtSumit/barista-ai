@@ -50,7 +50,11 @@ def _canonical(allergen: str) -> str:
 
 def _is_safe(item: dict, blocked: set) -> bool:
     for listed in item["allergens"]:
-        listed = listed.lower()
+        # Canonicalised on this side too, not just the customer's words: the menu
+        # labels the pastries "wheat" while the alias map turns a customer's
+        # "gluten"/"coeliac" into "gluten". Comparing raw labels, neither string
+        # contains the other, and the croissant would read as safe for a coeliac.
+        listed = _canonical(listed)
         for b in blocked:
             # substring both ways so "nut" blocks "nuts" and vice versa
             if b in listed or listed in b:
@@ -82,21 +86,21 @@ def _score(item: dict, words: set) -> int:
 
 
 def search_menu(query: str, exclude_allergens: list[str]) -> dict:
-    """Search the coffee shop menu and return matching drinks.
+    """Search the coffee shop menu and return matching items.
 
-    Always call this before recommending anything, and recommend only drinks it
+    Always call this before recommending anything, and recommend only items it
     returns. Never rely on memory for prices, ingredients or allergens.
 
     Args:
         query: What the customer is after, in their words — a taste, a mood, a
-            temperature, a drink name. For example "something strong and iced"
+            temperature, an item name. For example "something strong and iced"
             or "sweet dessert coffee".
         exclude_allergens: Allergens the customer must avoid, such as
             ["dairy", "nuts"]. Pass an empty list if they have stated no
             allergies. Anything containing these is removed before matching.
 
     Returns:
-        A dict with `matches` (drinks safe to offer), `unsafe_matches` (drinks
+        A dict with `matches` (items safe to offer), `unsafe_matches` (items
         the customer asked about that we serve but that contain a blocked
         allergen — mention these honestly, never offer them), and counts.
     """
@@ -117,12 +121,12 @@ def search_menu(query: str, exclude_allergens: list[str]) -> dict:
     matches = [i for score, i in ranked if score > 0][:4]
 
     # No keyword landed — hand back the whole safe menu rather than nothing, so
-    # the agent still has real data to recommend from instead of inventing a drink.
+    # the agent still has real data to recommend from instead of inventing an item.
     fell_back = not matches
     if fell_back:
         matches = safe
 
-    # Drinks the customer asked for that we do serve but must not offer them.
+    # Items the customer asked for that we do serve but must not offer them.
     # Without this the agent cannot tell "we don't sell that" from "that would
     # hurt you", and ends up denying the menu item exists.
     unsafe_ranked = sorted(

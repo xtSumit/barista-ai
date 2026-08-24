@@ -29,7 +29,7 @@ GREETING = (
 )
 
 STARTERS = [
-    "Something strong and iced",
+    "Something strong and cold",
     "I'm lactose intolerant",
     "Something sweet and cold",
     "Surprise me",
@@ -346,17 +346,16 @@ with st.sidebar:
     st.subheader("Today's menu")
     st.caption("Everything we make, all day.")
     menu = _load_menu()
-    # Two across, so eight drinks stand a chance of fitting without a scrollbar.
-    # No strict= on this zip, unlike the starters below: an odd number of drinks
+    # Two across, so eight items stand a chance of fitting without a scrollbar.
+    # No strict= on this zip, unlike the starters below: an odd number of items
     # should render short, not raise.
     for start in range(0, len(menu), 2):
         for col, item in zip(st.columns(2), menu[start:start + 2]):
-            caffeine = f" · {item['caffeine_mg']} mg" if item.get("caffeine_mg") else ""
             allergens = ", ".join(item["allergens"]) or "no allergens"
             col.markdown(
                 f"<div class='drink'>{art_for(item['name'])}"
                 f"<div class='drink-name'>{item['name']}</div>"
-                f"<div class='drink-price'>${item['price_usd']:.2f}{caffeine}</div>"
+                f"<div class='drink-price'>${item['price']:.2f}</div>"
                 f"<div class='drink-meta'>{allergens}</div></div>",
                 unsafe_allow_html=True,
             )

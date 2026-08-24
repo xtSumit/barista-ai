@@ -44,7 +44,7 @@ database and no embedding call per query.
 
 | File | Purpose |
 |---|---|
-| `menu.json` | The RAG data source — 8 drinks with tags, allergens, price, caffeine |
+| `menu.json` | The RAG data source — the codelab's 8 items (6 drinks, 2 bakery) with tags, allergens and price |
 | `menu_tool.py` | `search_menu()` — retrieval + allergen filtering. No ADK import, so it's testable offline |
 | `agent.py` | The ADK `LlmAgent`, its instruction, and the tool wiring |
 | `app.py` | Streamlit chat UI, conversation history, ADK runner |
@@ -84,11 +84,15 @@ anyway, run `Set-ExecutionPolicy -Scope Process RemoteSigned` first; `pip` and
 
 ### Try these
 
-- `I want something strong and iced` → should land on Cold Brew
+- `I want something strong and cold` → should land on Cold Brew Coffee or
+  Nitro Cold Brew
 - `I'm lactose intolerant but want something sweet` → must not offer the
-  Cappuccino, Iced Vanilla Latte, Mocha or Affogato
-- `Do you have anything with hazelnut?` → Hazelnut Mocha, flagged for nuts
-- `Something caffeine-free for the evening` → Decaf Soy Caramel Macchiato
+  Seasonal Pumpkin Latte or Iced Caramel Macchiato; the Vegan Blueberry Muffin
+  and Oat Milk Honey Latte are the safe sweet options
+- `I'm coeliac, what pastries do you have?` → both are wheat, so it should say
+  so rather than pretend the counter is empty
+- `Do you have a flat white?` → we don't; it should say so and offer the
+  closest thing the tool returned, not invent a price
 
 ## Authentication — one codebase, two environments
 
